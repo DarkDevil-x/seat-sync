@@ -31,10 +31,11 @@ export const EventCard = memo(function EventCard({
   } = event;
 
   const formattedDate = formatDistanceToNow(new Date(date), { addSuffix: true });
-  const availability = totalSeats ? (availableSeats / totalSeats) * 100 : 0;
-  const isSelling = availability > 0 && availability < 20;
-  const isSoldOut = availability === 0;
-  const isLowStock = availability > 0 && availability < 30;
+  const hasSeatData = typeof totalSeats === 'number' && totalSeats > 0 && typeof availableSeats === 'number';
+  const availability = hasSeatData ? (availableSeats / totalSeats) * 100 : 100;
+  const isSoldOut = hasSeatData && availableSeats === 0;
+  const isSelling = hasSeatData && availability > 0 && availability < 20;
+  const isLowStock = hasSeatData && availability > 0 && availability < 30;
 
   const availColor = isSoldOut
     ? "bg-red-500"
