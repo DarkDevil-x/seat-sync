@@ -8,8 +8,8 @@
  * 4. Sign a JWT and redirect to the frontend with the token in the URL
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import dbConnect from '../db.js';
-import User from '../models/User.js';
+import dbConnect from '../../../db.js';
+import User from '../../../models/User.js';
 import { signToken } from '../../_utils/auth.js';
 import { setCorsHeaders } from '../../_utils/cors.js';
 

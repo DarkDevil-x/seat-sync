@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import dbConnect from '../db.js';
-import Seat from '../models/Seat.js';
-import Booking from '../models/Booking.js';
-import User from '../models/User.js';
+import dbConnect from '../../db.js';
+import Seat from '../../models/Seat.js';
+import Booking from '../../models/Booking.js';
+import User from '../../models/User.js';
 import { setCorsHeaders } from '../_utils/cors.js';
 import { requireAdmin } from '../_utils/auth.js';
 
