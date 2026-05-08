@@ -359,6 +359,19 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
     return base + "border-primary/40 bg-transparent text-foreground/80 hover:border-primary hover:bg-primary/10";
   };
 
+  // ── HOOKS MUST COME BEFORE ANY CONDITIONAL RETURNS (Rules of Hooks) ──────────
+  const seatsByRow = useMemo(() => {
+    const map = new Map<string, Seat[]>();
+    for (const seat of seats) {
+      if (!map.has(seat.row)) map.set(seat.row, []);
+      map.get(seat.row)!.push(seat);
+    }
+    for (const rowSeats of map.values()) {
+      rowSeats.sort((a, b) => a.number - b.number);
+    }
+    return map;
+  }, [seats]);
+
   if (loading) {
     return <div className="flex justify-center py-12">Loading seating plan...</div>;
   }
@@ -400,18 +413,6 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
   const frontRows = rows.slice(0, third);
   const backsideRows = rows.slice(third, third * 2);
   const balconyRows = rows.slice(third * 2);
-
-  const seatsByRow = useMemo(() => {
-    const map = new Map<string, Seat[]>();
-    for (const seat of seats) {
-      if (!map.has(seat.row)) map.set(seat.row, []);
-      map.get(seat.row)!.push(seat);
-    }
-    for (const rowSeats of map.values()) {
-      rowSeats.sort((a, b) => a.number - b.number);
-    }
-    return map;
-  }, [seats]);
 
   const renderSeat = (seat: Seat) => (
     <button
