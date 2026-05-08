@@ -1,11 +1,9 @@
-import 'dotenv/config';
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI!;
-
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable in .env');
-}
+// On Vercel, env vars are injected by the platform – no .env file exists.
+// Locally, vite.config.ts loads .env into process.env for us.
+// We do NOT import 'dotenv/config' here because it crashes on Vercel
+// when the .env file is absent.
 
 interface MongooseCache {
   conn: typeof mongoose | null;
@@ -25,14 +23,32 @@ async function dbConnect(): Promise<typeof mongoose> {
     return cached.conn;
   }
 
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error(
+      'MONGODB_URI is not defined. ' +
+      'On Vercel: add it in Project Settings → Environment Variables. ' +
+      'Locally: add it to your .env file.'
+    );
+  }
+
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI, {
+    console.log('[db] Connecting to MongoDB…');
+    cached.promise = mongoose.connect(uri, {
       bufferCommands: false,
     });
   }
 
-  cached.conn = await cached.promise;
-  return cached.conn;
+  try {
+    cached.conn = await cached.promise;
+    console.log('[db] Connected to MongoDB successfully');
+    return cached.conn;
+  } catch (err) {
+    // Reset the promise so next invocation retries
+    cached.promise = null;
+    console.error('[db] MongoDB connection failed:', err);
+    throw err;
+  }
 }
 
 export default dbConnect;

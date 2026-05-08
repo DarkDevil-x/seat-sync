@@ -36,51 +36,57 @@ import route_32 from '../server/api/seats/reset.js';
 import route_33 from '../server/api/seats.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const pathname = req.url ? req.url.split('?')[0] : '/';
+  try {
+    const pathname = req.url ? req.url.split('?')[0] : '/';
 
+    if (pathname === '/api/admin/analytics') return route_2(req, res);
+    if (pathname === '/api/admin/booking') return route_3(req, res);
+    if (pathname === '/api/admin/checkin') return route_4(req, res);
+    if (pathname === '/api/admin/event-control') return route_5(req, res);
+    if (pathname === '/api/admin/export-users') return route_6(req, res);
+    if (pathname === '/api/admin/seat-type') return route_7(req, res);
+    if (pathname === '/api/auth/admin-setup') return route_8(req, res);
+    if (pathname === '/api/auth/change-password') return route_9(req, res);
+    if (pathname === '/api/auth/check-admin') return route_10(req, res);
+    if (pathname === '/api/auth/google/callback') return route_11(req, res);
+    if (pathname === '/api/auth/google') return route_12(req, res);
+    if (pathname === '/api/auth/login') return route_13(req, res);
+    if (pathname === '/api/auth/logout') return route_14(req, res);
+    if (pathname === '/api/auth/me') return route_15(req, res);
+    if (pathname === '/api/auth/register') return route_16(req, res);
+    if (pathname === '/api/auth/update-profile') return route_17(req, res);
+    if (pathname === '/api/auth/update-role') return route_18(req, res);
+    if (pathname === '/api/auth/users') return route_19(req, res);
 
-  if (pathname === '/api/admin/analytics') return route_2(req, res);
-  if (pathname === '/api/admin/booking') return route_3(req, res);
-  if (pathname === '/api/admin/checkin') return route_4(req, res);
-  if (pathname === '/api/admin/event-control') return route_5(req, res);
-  if (pathname === '/api/admin/export-users') return route_6(req, res);
-  if (pathname === '/api/admin/seat-type') return route_7(req, res);
-  if (pathname === '/api/auth/admin-setup') return route_8(req, res);
-  if (pathname === '/api/auth/change-password') return route_9(req, res);
-  if (pathname === '/api/auth/check-admin') return route_10(req, res);
-  if (pathname === '/api/auth/google/callback') return route_11(req, res);
-  if (pathname === '/api/auth/google') return route_12(req, res);
-  if (pathname === '/api/auth/login') return route_13(req, res);
-  if (pathname === '/api/auth/logout') return route_14(req, res);
-  if (pathname === '/api/auth/me') return route_15(req, res);
-  if (pathname === '/api/auth/register') return route_16(req, res);
-  if (pathname === '/api/auth/update-profile') return route_17(req, res);
-  if (pathname === '/api/auth/update-role') return route_18(req, res);
-  if (pathname === '/api/auth/users') return route_19(req, res);
+    const match_20 = pathname.match(/^\/api\/bookings\/([^\/]+)$/);
+    if (match_20) {
+      req.query.id = match_20[1];
+      return route_20(req, res);
+    }
+    if (pathname === '/api/bookings/admin') return route_21(req, res);
+    if (pathname === '/api/bookings/cancel') return route_22(req, res);
+    if (pathname === '/api/bookings/export') return route_23(req, res);
+    if (pathname === '/api/bookings/status') return route_24(req, res);
+    if (pathname === '/api/bookings') return route_25(req, res);
 
-  const match_20 = pathname.match(/^\/api\/bookings\/([^\/]+)$/);
-  if (match_20) {
-    req.query.id = match_20[1];
-    return route_20(req, res);
+    const match_26 = pathname.match(/^\/api\/events\/([^\/]+)$/);
+    if (match_26) {
+      req.query.id = match_26[1];
+      return route_26(req, res);
+    }
+    if (pathname === '/api/events') return route_27(req, res);
+    if (pathname === '/api/seats/confirm') return route_28(req, res);
+    if (pathname === '/api/seats/generate') return route_29(req, res);
+    if (pathname === '/api/seats/hold') return route_30(req, res);
+    if (pathname === '/api/seats/release') return route_31(req, res);
+    if (pathname === '/api/seats/reset') return route_32(req, res);
+    if (pathname === '/api/seats') return route_33(req, res);
+
+    return res.status(404).json({ error: 'Route not found: ' + pathname });
+  } catch (err: unknown) {
+    console.error('[api/index] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return res.status(500).json({ error: message });
   }
-  if (pathname === '/api/bookings/admin') return route_21(req, res);
-  if (pathname === '/api/bookings/cancel') return route_22(req, res);
-  if (pathname === '/api/bookings/export') return route_23(req, res);
-  if (pathname === '/api/bookings/status') return route_24(req, res);
-  if (pathname === '/api/bookings') return route_25(req, res);
-
-  const match_26 = pathname.match(/^\/api\/events\/([^\/]+)$/);
-  if (match_26) {
-    req.query.id = match_26[1];
-    return route_26(req, res);
-  }
-  if (pathname === '/api/events') return route_27(req, res);
-  if (pathname === '/api/seats/confirm') return route_28(req, res);
-  if (pathname === '/api/seats/generate') return route_29(req, res);
-  if (pathname === '/api/seats/hold') return route_30(req, res);
-  if (pathname === '/api/seats/release') return route_31(req, res);
-  if (pathname === '/api/seats/reset') return route_32(req, res);
-  if (pathname === '/api/seats') return route_33(req, res);
-
-  return res.status(404).json({ error: 'Route not found: ' + pathname });
 }
+
