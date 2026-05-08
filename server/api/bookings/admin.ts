@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       Booking.countDocuments(filter),
     ]);
 
-    const typedBookings = bookings as Array<{
+    const typedBookings = bookings as unknown as Array<{
       _id: unknown;
       event_id: { _id: unknown; title: string; is_free: boolean } | null;
       user_id: unknown;

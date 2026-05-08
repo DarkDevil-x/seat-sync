@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const token = signToken({ userId: user._id.toString(), email: user.email, is_admin: user.is_admin });
 
-    const userObj = user.toObject() as Record<string, unknown>;
+    const userObj = user.toObject() as unknown as Record<string, unknown>;
     delete userObj.password;
 
     return res.status(200).json({ token, user: userObj });

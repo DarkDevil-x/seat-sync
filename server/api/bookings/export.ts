@@ -53,10 +53,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userMap = new Map(users.map((u) => [String(u._id), u]));
 
     // Batch-load all booking_seats + seats
-    const bookingIds = bookings.map((b) => b._id);
+    const bookingIds = bookings.map((b) => b._id) as string[];
     const bookingSeats = await BookingSeat.find({ booking_id: { $in: bookingIds } })
       .populate('seat_id')
-      .lean() as Array<{ booking_id: unknown; seat_id: { row: string; number: number } | null }>;
+      .lean() as unknown as Array<{ booking_id: unknown; seat_id: { row: string; number: number } | null }>;
 
     const seatsByBooking = new Map<string, string[]>();
     for (const bs of bookingSeats) {

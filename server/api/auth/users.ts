@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import dbConnect from '../../db';
 import User from '../../models/User';
+import Booking from '../../models/Booking';
 import { setCorsHeaders } from '../_utils/cors';
 import { requireAdmin } from '../_utils/auth';
 
@@ -21,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const [users, bookingCounts, total] = await Promise.all([
       User.find({}).select('-password').skip(skip).limit(limitNum).lean(),
-      (await import('../../server/models/Booking')).default.aggregate([
+      Booking.aggregate([
         { $group: { _id: '$user_id', count: { $sum: 1 } } },
       ]),
       User.countDocuments({}),

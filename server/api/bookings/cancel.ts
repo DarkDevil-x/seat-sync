@@ -3,6 +3,7 @@ import dbConnect from '../../db';
 import Booking from '../../models/Booking';
 import Seat from '../../models/Seat';
 import BookingSeat from '../../models/BookingSeat';
+import Event from '../../models/Event';
 import { setCorsHeaders } from '../_utils/cors';
 import { requireAuth } from '../_utils/auth';
 
@@ -23,8 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (booking.status === 'cancelled') return res.status(400).json({ error: 'Booking is already cancelled' });
 
     // Check 24-hour rule
-    const { default: EventModel } = await import('../../server/models/Event');
-    const event = await EventModel.findById(booking.event_id);
+    const event = await Event.findById(booking.event_id);
     if (event) {
       const hoursUntilEvent = (new Date(event.date).getTime() - Date.now()) / 36e5;
       if (hoursUntilEvent < 24) {

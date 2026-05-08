@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .sort({ created_at: -1 })
         .lean();
 
-      const bookingIds = bookings.map((b) => (b as { _id: unknown })._id);
+      const bookingIds = bookings.map((b) => (b as { _id: unknown })._id) as string[];
       const allBookingSeats = await BookingSeat.find({ booking_id: { $in: bookingIds } })
         .populate('seat_id')
         .lean();
