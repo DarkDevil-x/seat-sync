@@ -54,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await Seat.deleteMany({ event_id: eventId });
 
     const basePrice = parseFloat(String(seatPrice));
-    const seatsToCreate: object[] = [];
+    const seatsToCreate: any[] = [];
 
     if (customLayout) {
       const rowLetters = generateRowLetters(numberOfRows);

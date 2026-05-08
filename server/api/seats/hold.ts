@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           { status: 'reserved', heldUntil: { $lt: now } },
           { status: 'reserved', heldBy: userId },
         ],
-      },
+      } as any,
       {
         $set: { status: 'reserved', heldBy: userId, heldUntil },
       }
@@ -45,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (result.modifiedCount !== seatIds.length) {
       // Roll back any partial holds this user just acquired
       await Seat.updateMany(
-        { _id: { $in: seatIds }, heldBy: userId },
+        { _id: { $in: seatIds }, heldBy: userId } as any,
         { $set: { status: 'available', heldBy: null, heldUntil: null } }
       );
       return res.status(409).json({ error: 'One or more seats are no longer available' });

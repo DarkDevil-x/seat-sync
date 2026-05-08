@@ -110,7 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         { google_id: googleUser.sub },
         { email: googleUser.email.toLowerCase() },
       ],
-    });
+    } as any);
 
     if (user) {
       // Update Google-provided fields if changed

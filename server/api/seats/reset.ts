@@ -21,17 +21,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Cancel all active bookings for this event
     await Booking.updateMany(
-      { event_id: eventId, status: { $in: ['confirmed', 'pending'] } },
-      { status: 'cancelled' }
+      { event_id: eventId, status: { $in: ['confirmed', 'pending'] } } as any,
+      { status: 'cancelled' } as any
     );
 
     // Reset every seat to available and clear any holds
     const result = await Seat.updateMany(
-      { event_id: eventId },
+      { event_id: eventId } as any,
       {
         $set: { status: 'available' },
         $unset: { heldBy: 1, heldUntil: 1 },
-      }
+      } as any
     );
 
     return res.status(200).json({

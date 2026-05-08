@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Only release seats that are currently held by this user
     await Seat.updateMany(
-      { _id: { $in: seatIds }, heldBy: userId, status: 'reserved' },
+      { _id: { $in: seatIds }, heldBy: userId, status: 'reserved' } as any,
       { $set: { status: 'available', heldBy: null, heldUntil: null } }
     );
 
