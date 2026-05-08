@@ -19,4 +19,4 @@ const BookingSeatSchema = new Schema<IBookingSeat>(
 BookingSeatSchema.index({ booking_id: 1 });
 BookingSeatSchema.index({ seat_id: 1 }, { unique: true });
 
-export default mongoose.models.BookingSeat || mongoose.model<IBookingSeat>('BookingSeat', BookingSeatSchema);
+export default (mongoose.models.BookingSeat as mongoose.Model<IBookingSeat>) || mongoose.model<IBookingSeat>("BookingSeat", BookingSeatSchema);

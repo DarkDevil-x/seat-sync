@@ -34,4 +34,4 @@ const BookingSchema = new Schema<IBooking>(
 BookingSchema.index({ user_id: 1, created_at: -1 });
 BookingSchema.index({ event_id: 1 });
 
-export default mongoose.models.Booking || mongoose.model<IBooking>('Booking', BookingSchema);
+export default (mongoose.models.Booking as mongoose.Model<IBooking>) || mongoose.model<IBooking>("Booking", BookingSchema);

@@ -25,4 +25,4 @@ const LoginLogSchema = new Schema<ILoginLog>(
 LoginLogSchema.index({ user_id: 1, created_at: -1 });
 LoginLogSchema.index({ email: 1, created_at: -1 });
 
-export default mongoose.models.LoginLog || mongoose.model<ILoginLog>('LoginLog', LoginLogSchema);
+export default (mongoose.models.LoginLog as mongoose.Model<ILoginLog>) || mongoose.model<ILoginLog>("LoginLog", LoginLogSchema);

@@ -44,4 +44,4 @@ const EventSchema = new Schema<IEvent>(
 EventSchema.index({ is_published: 1, date: 1 });
 EventSchema.index({ category: 1 });
 
-export default mongoose.models.Event || mongoose.model<IEvent>('Event', EventSchema);
+export default (mongoose.models.Event as mongoose.Model<IEvent>) || mongoose.model<IEvent>("Event", EventSchema);

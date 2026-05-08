@@ -41,4 +41,4 @@ SeatSchema.index({ event_id: 1, status: 1 });
 SeatSchema.index({ event_id: 1, row: 1, number: 1 }, { unique: true });
 SeatSchema.index({ heldUntil: 1 }, { sparse: true });
 
-export default mongoose.models.Seat || mongoose.model<ISeat>('Seat', SeatSchema);
+export default (mongoose.models.Seat as mongoose.Model<ISeat>) || mongoose.model<ISeat>("Seat", SeatSchema);
