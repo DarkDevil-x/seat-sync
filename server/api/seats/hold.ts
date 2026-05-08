@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import dbConnect from '../../db.js';
-import Seat from '../../models/Seat.js';
-import { setCorsHeaders } from '../_utils/cors.js';
-import { requireAuth } from '../_utils/auth.js';
+import dbConnect from '../../db';
+import Seat from '../../models/Seat';
+import { setCorsHeaders } from '../_utils/cors';
+import { requireAuth } from '../_utils/auth';
 
 const HOLD_DURATION_MS = 10 * 60 * 1000; // 10 minutes
 

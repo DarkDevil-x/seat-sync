@@ -8,11 +8,11 @@
  */
 
 import 'dotenv/config';
-import dbConnect from './db.js';
-import User from './models/User.js';
-import EventModel from './models/Event.js';
-import SeatModel from './models/Seat.js';
-import BookingModel from './models/Booking.js';
+import dbConnect from './db';
+import User from './models/User';
+import EventModel from './models/Event';
+import SeatModel from './models/Seat';
+import BookingModel from './models/Booking';
 
 async function seed() {
   console.log('🌱  Connecting to MongoDB…');

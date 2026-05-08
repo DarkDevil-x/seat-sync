@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import dbConnect from '../db.js';
-import Event from '../models/Event.js';
-import { setCorsHeaders } from './_utils/cors.js';
-import { requireAdmin } from './_utils/auth.js';
+import dbConnect from '../db';
+import Event from '../models/Event';
+import { setCorsHeaders } from './_utils/cors';
+import { requireAdmin } from './_utils/auth';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(res);
@@ -37,10 +37,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Internal server error';
-    if (message === 'Authentication required') return res.status(401).json({ error: message });
-    if (message === 'Admin access required') return res.status(403).json({ error: message });
-    console.error('[api/events]', err);
-    return res.status(500).json({ error: message });
+    const error = err as any;
+    const message = error.message || 'Internal server error';
+    console.error('[api/events] Error:', {
+      message,
+      stack: error.stack,
+      query: req.query,
+      method: req.method
+    });
+    return res.status(500).json({ 
+      error: message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 }

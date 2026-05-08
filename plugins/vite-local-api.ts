@@ -154,7 +154,10 @@ export function localApiPlugin(): Plugin {
           console.error('[vite-local-api] error:', err);
           if (!res.headersSent) {
             res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Internal server error' }));
+            res.end(JSON.stringify({ 
+              error: err instanceof Error ? err.message : String(err),
+              stack: err instanceof Error ? err.stack : undefined
+            }));
           }
         }
       });
