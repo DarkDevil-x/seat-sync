@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Scoped to the authenticated user so users cannot access each other's bookings
     const booking = await Booking.findOne({ _id: id, user_id: userId })
       .populate('event_id')
-      .lean() as Record<string, unknown> | null;
+      .lean() as unknown as Record<string, unknown> | null;
 
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
