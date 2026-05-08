@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import dbConnect from '../../server/db.js';
-import User from '../../server/models/User.js';
+import dbConnect from '../db.js';
+import User from '../models/User.js';
 import { setCorsHeaders } from '../_utils/cors.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

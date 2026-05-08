@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import dbConnect from '../../server/db.js';
-import Booking from '../../server/models/Booking.js';
+import dbConnect from '../db.js';
+import Booking from '../models/Booking.js';
 import { setCorsHeaders } from '../_utils/cors.js';
 import { requireAdmin } from '../_utils/auth.js';
 
