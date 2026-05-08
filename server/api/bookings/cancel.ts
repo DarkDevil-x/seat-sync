@@ -1,11 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import dbConnect from '../../db';
-import Booking from '../../models/Booking';
-import Seat from '../../models/Seat';
-import BookingSeat from '../../models/BookingSeat';
-import Event from '../../models/Event';
-import { setCorsHeaders } from '../_utils/cors';
-import { requireAuth } from '../_utils/auth';
+import dbConnect from '../../db.js';
+import Booking from '../../models/Booking.js';
+import Seat from '../../models/Seat.js';
+import BookingSeat from '../../models/BookingSeat.js';
+import Event from '../../models/Event.js';
+import { setCorsHeaders } from '../_utils/cors.js';
+import { requireAuth } from '../_utils/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(res);
