@@ -1,8 +1,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-import route_0 from '../server/api/_utils/auth.js';
-import route_1 from '../server/api/_utils/cors.js';
+
 import route_2 from '../server/api/admin/analytics.js';
 import route_3 from '../server/api/admin/booking.js';
 import route_4 from '../server/api/admin/checkin.js';
@@ -39,8 +38,7 @@ import route_33 from '../server/api/seats.js';
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const pathname = req.url ? req.url.split('?')[0] : '/';
 
-  if (pathname === '/api/_utils/auth') return route_0(req, res);
-  if (pathname === '/api/_utils/cors') return route_1(req, res);
+
   if (pathname === '/api/admin/analytics') return route_2(req, res);
   if (pathname === '/api/admin/booking') return route_3(req, res);
   if (pathname === '/api/admin/checkin') return route_4(req, res);
