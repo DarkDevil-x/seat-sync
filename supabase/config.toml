@@ -1,0 +1,29 @@
+
+project_id = "cgihldwnyxgdymbskypo"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
+
+[db]
+port = 54322
+
+[studio]
+port = 54323
+
+[inbucket]
+port = 54324
+
+[auth]
+enabled = true
+port = 9999
+
+[storage]
+port = 9000
+
+[functions]
+port = 9191
+
+[functions.export-bookings]
+verify_jwt = true

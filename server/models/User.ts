@@ -1,0 +1,55 @@
+import mongoose, { Document, Schema } from 'mongoose';
+import bcrypt from 'bcryptjs';
+
+export interface IUser extends Document {
+  email: string;
+  password: string;
+  first_name: string | null;
+  last_name: string | null;
+  is_admin: boolean;
+  avatar_url: string | null;
+  student_id: string | null;
+  phone_number: string | null;
+  course: string | null;
+  last_login: Date | null;
+  total_logins: number;
+  google_id: string | null;      // set for Google OAuth users
+  auth_provider: 'local' | 'google'; // which auth method was used
+  created_at: Date;
+  updated_at: Date;
+  comparePassword(candidatePassword: string): Promise<boolean>;
+}
+
+const UserSchema = new Schema<IUser>(
+  {
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    password: { type: String, required: false, select: false },  // optional for OAuth users
+    first_name: { type: String, default: null },
+    last_name: { type: String, default: null },
+    is_admin: { type: Boolean, default: false },
+    avatar_url: { type: String, default: null },
+    student_id: { type: String, default: null },
+    phone_number: { type: String, default: null },
+    course: { type: String, default: null },
+    last_login: { type: Date, default: null },
+    total_logins: { type: Number, default: 0 },
+    google_id: { type: String, default: null, sparse: true },
+    auth_provider: { type: String, enum: ['local', 'google'], default: 'local' },
+  },
+  {
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+  }
+);
+
+UserSchema.pre('save', async function () {
+  if (!this.isModified('password') || !this.password) return;
+  this.password = await bcrypt.hash(this.password, 12);
+});
+
+UserSchema.methods.comparePassword = async function (
+  candidatePassword: string
+): Promise<boolean> {
+  return bcrypt.compare(candidatePassword, this.password);
+};
+
+export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema);

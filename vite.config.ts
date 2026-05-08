@@ -1,0 +1,30 @@
+import { defineConfig, loadEnv } from "vite";
+import react from "@vitejs/plugin-react-swc";
+import path from "path";
+import { componentTagger } from "lovable-tagger";
+import { localApiPlugin } from "./plugins/vite-local-api";
+
+// https://vitejs.dev/config/
+export default defineConfig(({ mode }) => {
+  // Expose all .env vars (not just VITE_*) to process.env so API handlers
+  // can read MONGODB_URI, JWT_SECRET, etc. during local development.
+  const env = loadEnv(mode, process.cwd(), '');
+  Object.assign(process.env, env);
+
+  return {
+    server: {
+      host: "::",
+      port: 8080,
+    },
+    plugins: [
+      react(),
+      mode === 'development' && componentTagger(),
+      mode === 'development' && localApiPlugin(),
+    ].filter(Boolean),
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
+  };
+});
