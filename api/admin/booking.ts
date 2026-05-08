@@ -1,12 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import mongoose from 'mongoose';
-import dbConnect from '../../server/db';
-import Booking from '../../server/models/Booking';
-import BookingSeat from '../../server/models/BookingSeat';
-import Seat from '../../server/models/Seat';
-import User from '../../server/models/User';
-import { setCorsHeaders } from '../_utils/cors';
-import { requireAdmin } from '../_utils/auth';
+import dbConnect from '../../server/db.js';
+import Booking from '../../server/models/Booking.js';
+import BookingSeat from '../../server/models/BookingSeat.js';
+import Seat from '../../server/models/Seat.js';
+import User from '../../server/models/User.js';
+import { setCorsHeaders } from '../_utils/cors.js';
+import { requireAdmin } from '../_utils/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(res);

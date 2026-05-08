@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import dbConnect from '../../server/db';
-import Booking from '../../server/models/Booking';
-import User from '../../server/models/User';
-import { setCorsHeaders } from '../_utils/cors';
-import { requireAdmin } from '../_utils/auth';
+import dbConnect from '../../server/db.js';
+import Booking from '../../server/models/Booking.js';
+import User from '../../server/models/User.js';
+import { setCorsHeaders } from '../_utils/cors.js';
+import { requireAdmin } from '../_utils/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(res);

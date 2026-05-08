@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
-import dbConnect from '../../server/db';
-import User from '../../server/models/User';
-import { setCorsHeaders } from '../_utils/cors';
-import { requireAuth } from '../_utils/auth';
+import dbConnect from '../../server/db.js';
+import User from '../../server/models/User.js';
+import { setCorsHeaders } from '../_utils/cors.js';
+import { requireAuth } from '../_utils/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(res);

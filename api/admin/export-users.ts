@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import dbConnect from '../../server/db';
-import User from '../../server/models/User';
-import Booking from '../../server/models/Booking';
-import { setCorsHeaders } from '../_utils/cors';
-import { requireAdmin } from '../_utils/auth';
+import dbConnect from '../../server/db.js';
+import User from '../../server/models/User.js';
+import Booking from '../../server/models/Booking.js';
+import { setCorsHeaders } from '../_utils/cors.js';
+import { requireAdmin } from '../_utils/auth.js';
 
 function escapeCSV(value: unknown): string {
   return `"${String(value ?? '').replace(/"/g, '""')}"`;

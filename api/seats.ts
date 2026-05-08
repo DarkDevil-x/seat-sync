@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import dbConnect from '../server/db';
-import Seat from '../server/models/Seat';
-import { setCorsHeaders } from './_utils/cors';
+import dbConnect from '../server/db.js';
+import Seat from '../server/models/Seat.js';
+import { setCorsHeaders } from './_utils/cors.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(res);

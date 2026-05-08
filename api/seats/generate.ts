@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import dbConnect from '../../server/db';
-import Seat from '../../server/models/Seat';
-import { setCorsHeaders } from '../_utils/cors';
-import { requireAdmin } from '../_utils/auth';
+import dbConnect from '../../server/db.js';
+import Seat from '../../server/models/Seat.js';
+import { setCorsHeaders } from '../_utils/cors.js';
+import { requireAdmin } from '../_utils/auth.js';
 
 function generateRowLetters(count: number): string[] {
   const letters: string[] = [];

@@ -3,7 +3,7 @@
  * Redirects the user to Google's OAuth 2.0 consent page.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { setCorsHeaders } from '../../_utils/cors';
+import { setCorsHeaders } from '../../_utils/cors.js';
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(res);
