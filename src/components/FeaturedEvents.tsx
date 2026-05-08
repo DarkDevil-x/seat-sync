@@ -1,15 +1,44 @@
-
+import { useState, useEffect } from "react";
 import { EventCard } from "./EventCard";
 import { Button } from "./ui/button";
 import { Link } from "react-router-dom";
 import { Event } from "@/types";
-import { mockEvents } from "@/mocks/events";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
 
-const events: Event[] = mockEvents.slice(0, 8);
-
 export function FeaturedEvents() {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      try {
+        const res = await fetch('/api/events?featured=true');
+        if (res.ok) {
+          const data = await res.json();
+          setEvents(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch featured events:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchFeatured();
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="py-16 md:py-24 bg-background relative overflow-hidden flex justify-center">
+        <p className="text-muted-foreground">Loading featured events...</p>
+      </section>
+    );
+  }
+
+  if (events.length === 0) {
+    return null;
+  }
+
   return (
     <section className="py-16 md:py-24 bg-background relative overflow-hidden">
       <div className="container max-w-7xl mx-auto px-4 relative z-10">

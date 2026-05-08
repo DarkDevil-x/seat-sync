@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -402,6 +401,18 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
   const backsideRows = rows.slice(third, third * 2);
   const balconyRows = rows.slice(third * 2);
 
+  const seatsByRow = useMemo(() => {
+    const map = new Map<string, Seat[]>();
+    for (const seat of seats) {
+      if (!map.has(seat.row)) map.set(seat.row, []);
+      map.get(seat.row)!.push(seat);
+    }
+    for (const rowSeats of map.values()) {
+      rowSeats.sort((a, b) => a.number - b.number);
+    }
+    return map;
+  }, [seats]);
+
   const renderSeat = (seat: Seat) => (
     <button
       key={seat.id}
@@ -415,8 +426,7 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
   );
 
   const renderRow = (row: string, isSplit: boolean) => {
-    const rowSeats = seats.filter(s => s.row === row);
-    const sorted = [...rowSeats].sort((a, b) => a.number - b.number);
+    const sorted = seatsByRow.get(row) || [];
     
     if (isSplit && sorted.length > 4) {
       const mid = Math.ceil(sorted.length / 2);
