@@ -70,31 +70,14 @@ function buildMockRes(res: ServerResponse) {
   return mockRes;
 }
 
-// ── resolve URL path to a handler file path ───────────────────────────────────
 function resolveHandlerFile(
   root: string,
   segments: string[],
   params: Record<string, string>,
 ): string | null {
-  // 1. Exact: api/a/b/c.ts
-  const exact = resolve(root, 'api', ...segments) + '.ts';
-  if (existsSync(exact)) return exact;
-
-  // 2. Index: api/a/b/c/index.ts
-  const indexFile = resolve(root, 'api', ...segments, 'index.ts');
-  if (existsSync(indexFile)) return indexFile;
-
-  // 3. Dynamic: replace each segment (from last to first) with [id]
-  for (let i = segments.length - 1; i >= 0; i--) {
-    const dynamic = [...segments];
-    dynamic[i] = '[id]';
-    const dynFile = resolve(root, 'api', ...dynamic) + '.ts';
-    if (existsSync(dynFile)) {
-      params['id'] = segments[i];
-      return dynFile;
-    }
-  }
-
+  // We've consolidated everything into a single router for Vercel Hobby limits
+  const routerPath = resolve(root, 'api', 'index.ts');
+  if (existsSync(routerPath)) return routerPath;
   return null;
 }
 
