@@ -3,11 +3,16 @@ import dbConnect from '../../db.js';
 import User from '../../models/User.js';
 import { signToken } from '../_utils/auth.js';
 import { setCorsHeaders } from '../_utils/cors.js';
+import { rateLimit, getIp } from '../_utils/rateLimit.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  if (rateLimit(getIp(req as any), { windowMs: 60_000, max: 10 })) {
+    return res.status(429).json({ error: 'Too many login attempts. Please wait a minute.' });
+  }
 
   await dbConnect();
 

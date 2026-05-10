@@ -41,6 +41,9 @@ const UserSchema = new Schema<IUser>(
   }
 );
 
+UserSchema.index({ is_admin: 1 });
+UserSchema.index({ created_at: -1 });
+
 UserSchema.pre('save', async function () {
   if (!this.isModified('password') || !this.password) return;
   this.password = await bcrypt.hash(this.password, 12);

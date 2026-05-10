@@ -2,6 +2,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 
+import route_1b from '../server/api/admin/bookings-manage.js';
 import route_2 from '../server/api/admin/analytics.js';
 import route_3 from '../server/api/admin/booking.js';
 import route_4 from '../server/api/admin/checkin.js';
@@ -39,6 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const pathname = req.url ? req.url.split('?')[0] : '/';
 
+    if (pathname === '/api/admin/bookings-manage') return route_1b(req, res);
     if (pathname === '/api/admin/analytics') return route_2(req, res);
     if (pathname === '/api/admin/booking') return route_3(req, res);
     if (pathname === '/api/admin/checkin') return route_4(req, res);

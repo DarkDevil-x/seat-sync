@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import dbConnect from '../db.js';
 import Event from '../models/Event.js';
-import { setCorsHeaders } from './_utils/cors.js';
+import { setCorsHeaders, setPublicCache } from './_utils/cors.js';
 import { requireAdmin } from './_utils/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -25,6 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const rawEvents = await query.lean();
       const events = rawEvents.map((e: any) => ({ ...e, id: e._id.toString() }));
+      setPublicCache(res, 60);
       return res.status(200).json(events);
     }
 
