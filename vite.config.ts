@@ -27,37 +27,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            // React core — loaded on every page, keep separate for maximum cache reuse
-            if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react-router-dom/') || id.includes('node_modules/scheduler/')) {
-              return 'vendor-react';
-            }
-            // Animation — large lib only needed where motion is used
-            if (id.includes('node_modules/framer-motion/')) {
-              return 'vendor-motion';
-            }
-            // Charts — only used in admin dashboard
-            if (id.includes('node_modules/recharts/') || id.includes('node_modules/d3-') || id.includes('node_modules/victory-vendor/')) {
-              return 'vendor-charts';
-            }
-            // All Radix UI primitives — large but stable
-            if (id.includes('node_modules/@radix-ui/')) {
-              return 'vendor-radix';
-            }
-            // TanStack Query
-            if (id.includes('node_modules/@tanstack/')) {
-              return 'vendor-query';
-            }
-            // Everything else in node_modules goes into a general vendor chunk
-            if (id.includes('node_modules/')) {
-              return 'vendor-misc';
-            }
-          },
-        },
-      },
-      // Warn at 400KB, hard-limit chunks at 600KB (Vite default is 500KB)
+      // Vite's default chunking is production-safe and avoids circular dependency
+      // issues that can arise from manual chunk splitting (e.g. React.forwardRef
+      // being undefined when a dependent chunk loads before the React chunk).
       chunkSizeWarningLimit: 600,
     },
   };
