@@ -21,6 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     const seats = await Seat.find({ event_id: eventId })
+      .select('row number status seat_type label price event_id')
       .sort({ row: 1, number: 1 })
       .lean();
 

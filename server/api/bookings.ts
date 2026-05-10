@@ -21,8 +21,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const targetUserId = (req.query.userId as string) || authUser.userId;
 
       const bookings = await Booking.find({ user_id: targetUserId })
-        .populate('event_id')
+        .populate('event_id', 'title date location price category image_url is_free')
         .sort({ created_at: -1 })
+        .limit(100)
         .lean();
 
       const bookingIds = bookings.map((b) => (b as { _id: unknown })._id) as string[];

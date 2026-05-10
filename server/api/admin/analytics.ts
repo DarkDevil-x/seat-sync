@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import mongoose from 'mongoose';
 import dbConnect from '../../db.js';
 import Seat from '../../models/Seat.js';
 import Booking from '../../models/Booking.js';
@@ -18,68 +19,96 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { eventId } = req.query as { eventId?: string };
     if (!eventId) return res.status(400).json({ error: 'eventId query param is required' });
 
-    const [seats, bookings] = await Promise.all([
-      Seat.find({ event_id: eventId }).lean(),
-      Booking.find({ event_id: eventId }).lean(),
+    const eventObjId = new mongoose.Types.ObjectId(eventId);
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000);
+
+    // All counts computed in MongoDB — nothing loaded into Node.js heap
+    const [seatStats, bookingStats, trendRaw, topUsersRaw] = await Promise.all([
+      // Seat counts grouped by status/type in one pass
+      Seat.aggregate([
+        { $match: { event_id: eventObjId } },
+        { $group: {
+          _id: null,
+          total:     { $sum: 1 },
+          available: { $sum: { $cond: [{ $eq: ['$status', 'available'] }, 1, 0] } },
+          booked:    { $sum: { $cond: [{ $eq: ['$status', 'booked'] }, 1, 0] } },
+          reserved:  { $sum: { $cond: [{ $eq: ['$status', 'reserved'] }, 1, 0] } },
+          vip:       { $sum: { $cond: [{ $eq: ['$seat_type', 'vip'] }, 1, 0] } },
+          blocked:   { $sum: { $cond: [{ $eq: ['$seat_type', 'blocked'] }, 1, 0] } },
+        }},
+      ]),
+      // Booking totals: confirmed/cancelled, revenue, checked-in
+      Booking.aggregate([
+        { $match: { event_id: eventObjId } },
+        { $group: {
+          _id: null,
+          total:      { $sum: 1 },
+          confirmed:  { $sum: { $cond: [{ $eq: ['$status', 'confirmed'] }, 1, 0] } },
+          cancelled:  { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } },
+          revenue:    { $sum: { $cond: [{ $eq: ['$status', 'confirmed'] }, '$total_price', 0] } },
+          checked_in: { $sum: { $cond: ['$checked_in', 1, 0] } },
+        }},
+      ]),
+      // Booking trend: last 14 days, confirmed only
+      Booking.aggregate([
+        { $match: { event_id: eventObjId, status: 'confirmed', created_at: { $gte: fourteenDaysAgo } } },
+        { $group: {
+          _id: { $dateToString: { format: '%m/%d', date: '$created_at' } },
+          count: { $sum: 1 },
+        }},
+        { $sort: { _id: 1 } },
+      ]),
+      // Top 5 users by booking count for this event
+      Booking.aggregate([
+        { $match: { event_id: eventObjId, status: 'confirmed' } },
+        { $group: { _id: '$user_id', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 },
+        { $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+          pipeline: [{ $project: { first_name: 1, last_name: 1, email: 1, student_id: 1, course: 1 } }],
+        }},
+        { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+      ]),
     ]);
 
-    const total_seats    = seats.length;
-    const available_seats = seats.filter((s) => s.status === 'available').length;
-    const booked_seats   = seats.filter((s) => s.status === 'booked').length;
-    const reserved_seats = seats.filter((s) => s.status === 'reserved').length;
-    const vip_seats      = seats.filter((s) => s.seat_type === 'vip').length;
-    const blocked_seats  = seats.filter((s) => s.seat_type === 'blocked').length;
+    const s = seatStats[0] ?? { total: 0, available: 0, booked: 0, reserved: 0, vip: 0, blocked: 0 };
+    const b = bookingStats[0] ?? { total: 0, confirmed: 0, cancelled: 0, revenue: 0, checked_in: 0 };
 
-    const confirmed   = bookings.filter((b) => b.status === 'confirmed');
-    const cancelled   = bookings.filter((b) => b.status === 'cancelled');
-    const revenue     = confirmed.reduce((sum, b) => sum + b.total_price, 0);
-    const checked_in  = bookings.filter((b) => (b as any).checked_in === true).length;
-    const occupancy_pct = total_seats > 0 ? Math.round((booked_seats / total_seats) * 100) : 0;
-
-    // Bookings per day (last 14 days) for trend chart
+    // Build trend array for last 14 days, filling zeros for missing days
+    const trendMap = new Map((trendRaw as { _id: string; count: number }[]).map((r) => [r._id, r.count]));
     const now = Date.now();
-    const trend: { date: string; count: number }[] = [];
-    for (let i = 13; i >= 0; i--) {
-      const day = new Date(now - i * 86400000);
+    const trend = Array.from({ length: 14 }, (_, i) => {
+      const day = new Date(now - (13 - i) * 86400000);
       const label = `${day.getMonth() + 1}/${day.getDate()}`;
-      const count = confirmed.filter((b) => {
-        const d = new Date((b as any).created_at);
-        return d.toDateString() === day.toDateString();
-      }).length;
-      trend.push({ date: label, count });
-    }
+      return { date: label, count: trendMap.get(label) ?? 0 };
+    });
 
-    // Most active users for this event (top 5)
-    const userCount: Record<string, number> = {};
-    for (const b of confirmed) {
-      const uid = String(b.user_id);
-      userCount[uid] = (userCount[uid] || 0) + 1;
-    }
-    const topIds = Object.entries(userCount).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id]) => id);
-    const topUsers = await User.find({ _id: { $in: topIds } })
-      .select('first_name last_name email student_id course')
-      .lean();
-
-    const most_active_users = topUsers.map((u) => ({
-      name: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email,
-      email: u.email,
-      student_id: (u as any).student_id ?? null,
-      course: (u as any).course ?? null,
-      bookings: userCount[String(u._id)] || 0,
+    const most_active_users = (topUsersRaw as { _id: unknown; count: number; user?: { first_name?: string; last_name?: string; email?: string; student_id?: string; course?: string } }[]).map((r) => ({
+      name: [r.user?.first_name, r.user?.last_name].filter(Boolean).join(' ') || r.user?.email || 'Unknown',
+      email: r.user?.email ?? '',
+      student_id: r.user?.student_id ?? null,
+      course: r.user?.course ?? null,
+      bookings: r.count,
     }));
 
+    const occupancy_pct = s.total > 0 ? Math.round((s.booked / s.total) * 100) : 0;
+
     return res.status(200).json({
-      total_seats,
-      available_seats,
-      booked_seats,
-      reserved_seats,
-      vip_seats,
-      blocked_seats,
-      total_bookings: bookings.length,
-      confirmed_bookings: confirmed.length,
-      cancelled_bookings: cancelled.length,
-      revenue,
-      checked_in,
+      total_seats: s.total,
+      available_seats: s.available,
+      booked_seats: s.booked,
+      reserved_seats: s.reserved,
+      vip_seats: s.vip,
+      blocked_seats: s.blocked,
+      total_bookings: b.total,
+      confirmed_bookings: b.confirmed,
+      cancelled_bookings: b.cancelled,
+      revenue: b.revenue,
+      checked_in: b.checked_in,
       occupancy_pct,
       booking_trend: trend,
       most_active_users,

@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (featured === 'true') filter.date = { $gte: new Date() };
 
       let query = Event.find(filter).sort({ date: 1 });
-      if (featured === 'true') query = query.limit(4) as typeof query;
+      query = query.limit(featured === 'true' ? 4 : 500) as typeof query;
 
       const rawEvents = await query.lean();
       const events = rawEvents.map((e: any) => ({ ...e, id: e._id.toString() }));

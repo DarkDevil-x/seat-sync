@@ -31,7 +31,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const event = await Event.findById(eventId).lean() as { title: string } | null;
     if (!event) return res.status(404).json({ error: 'Event not found' });
 
-    const bookings = await Booking.find({ event_id: eventId }).lean() as Array<{
+    const bookings = await Booking.find({ event_id: eventId })
+      .select('user_id total_price status checked_in checked_in_at booking_note created_at')
+      .limit(5_000)
+      .lean() as Array<{
       _id: unknown;
       user_id: unknown;
       total_price: number;

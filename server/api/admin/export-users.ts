@@ -20,7 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     requireAdmin(req);
 
     const [users, bookingCounts] = await Promise.all([
-      User.find({}).select('-password').lean(),
+      User.find({}).select('first_name last_name email phone_number student_id course is_admin created_at').limit(10_000).lean(),
       Booking.aggregate([{ $group: { _id: '$user_id', count: { $sum: 1 } } }]),
     ]);
 

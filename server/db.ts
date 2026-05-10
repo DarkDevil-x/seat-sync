@@ -36,6 +36,15 @@ async function dbConnect(): Promise<typeof mongoose> {
     console.log('[db] Connecting to MongoDB…');
     cached.promise = mongoose.connect(uri, {
       bufferCommands: false,
+      // Render long-lived process: cap connections to avoid memory buildup
+      maxPoolSize: 5,
+      minPoolSize: 1,
+      // Time limits prevent hanging sockets from retaining heap
+      serverSelectionTimeoutMS: 10_000,
+      connectTimeoutMS: 10_000,
+      socketTimeoutMS: 45_000,
+      // Keep the connection alive against Atlas's 30-min idle timeout
+      heartbeatFrequencyMS: 60_000,
     });
   }
 
