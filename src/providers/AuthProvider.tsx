@@ -24,7 +24,19 @@ type AuthContextType = {
   profile: Profile | null;
   isLoading: boolean;
   signOut: () => Promise<void>;
+  loginWithToken: (token: string, rawUser: Record<string, unknown>) => void;
 };
+
+// Safe localStorage wrappers – Safari Private Mode throws QuotaExceededError
+function lsGet(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function lsSet(key: string, value: string): void {
+  try { localStorage.setItem(key, value); } catch { /* no-op in Safari private */ }
+}
+function lsRemove(key: string): void {
+  try { localStorage.removeItem(key); } catch { /* no-op in Safari private */ }
+}
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
@@ -32,6 +44,7 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   isLoading: true,
   signOut: async () => {},
+  loginWithToken: () => {},
 });
 
 async function fetchCurrentUser(
@@ -68,7 +81,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const loadFromToken = async () => {
-    const token = localStorage.getItem("auth_token");
+    const token = lsGet("auth_token");
     if (!token) {
       setUser(null);
       setProfile(null);
@@ -81,24 +94,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setProfile(result.profile);
     } else {
       // Token is invalid or expired – clear it
-      localStorage.removeItem("auth_token");
+      lsRemove("auth_token");
       setUser(null);
       setProfile(null);
     }
     setIsLoading(false);
   };
 
+  // Called directly from Auth.tsx after login/register – avoids a full page
+  // reload and the extra /api/auth/me round-trip by using the data already
+  // returned by the login endpoint.
+  const loginWithToken = (token: string, rawUser: Record<string, unknown>) => {
+    lsSet("auth_token", token);
+    const id = String(rawUser.id ?? rawUser._id ?? "");
+    setUser({ id, email: String(rawUser.email ?? "") });
+    setProfile({
+      id,
+      first_name: (rawUser.first_name as string | null) ?? null,
+      last_name: (rawUser.last_name as string | null) ?? null,
+      email: (rawUser.email as string | null) ?? null,
+      avatar_url: (rawUser.avatar_url as string | null) ?? null,
+      is_admin: Boolean(rawUser.is_admin),
+      student_id: (rawUser.student_id as string | null) ?? null,
+      course: (rawUser.course as string | null) ?? null,
+      phone_number: (rawUser.phone_number as string | null) ?? null,
+    });
+    setIsLoading(false);
+  };
+
   useEffect(() => {
     loadFromToken();
 
-    // Auth.tsx dispatches this event after a successful login/register
+    // Fallback: legacy callers can still dispatch "auth-change"
     const handleAuthChange = () => loadFromToken();
     window.addEventListener("auth-change", handleAuthChange);
     return () => window.removeEventListener("auth-change", handleAuthChange);
   }, []);
 
   const signOut = async () => {
-    const token = localStorage.getItem("auth_token");
+    const token = lsGet("auth_token");
     if (token) {
       try {
         await fetch("/api/auth/logout", {
@@ -109,13 +143,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // JWT is stateless – discarding the token is sufficient even if the request fails
       }
     }
-    localStorage.removeItem("auth_token");
+    lsRemove("auth_token");
     setUser(null);
     setProfile(null);
   };
 
   return (
-    <AuthContext.Provider value={{ session: null, user, profile, isLoading, signOut }}>
+    <AuthContext.Provider value={{ session: null, user, profile, isLoading, signOut, loginWithToken }}>
       {children}
     </AuthContext.Provider>
   );

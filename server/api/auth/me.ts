@@ -16,10 +16,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { userId } = requireAuth(req);
 
-    const user = await User.findById(userId).select('-password').lean();
+    const user = await User.findById(userId).select('-password').lean() as Record<string, unknown> | null;
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    return res.status(200).json(user);
+    // Always include a string `id` field alongside `_id` for client compatibility
+    return res.status(200).json({ ...user, id: String(user._id) });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Internal server error';
     if (message === 'Authentication required') return res.status(401).json({ error: message });

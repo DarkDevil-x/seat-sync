@@ -116,7 +116,7 @@ const SocialButtons = () => (
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loginWithToken } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -160,11 +160,10 @@ export default function Auth() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Registration failed");
-      if (rememberMe) localStorage.setItem("auth_remember", "1");
-      localStorage.setItem("auth_token", data.token);
-      window.dispatchEvent(new CustomEvent("auth-change"));
+      if (rememberMe) { try { localStorage.setItem("auth_remember", "1"); } catch { /* Safari private */ } }
+      loginWithToken(data.token, data.user ?? data);
       toast({ title: "Welcome to SeatSync!", description: "Your account has been created." });
-      window.location.href = "/events";
+      navigate("/events");
     } catch (error: any) {
       toast({ title: "Sign up failed", description: friendlyError(error.message), variant: "destructive" });
     } finally {
@@ -183,11 +182,10 @@ export default function Auth() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Sign in failed");
-      if (rememberMe) localStorage.setItem("auth_remember", "1");
-      localStorage.setItem("auth_token", data.token);
-      window.dispatchEvent(new CustomEvent("auth-change"));
+      if (rememberMe) { try { localStorage.setItem("auth_remember", "1"); } catch { /* Safari private */ } }
+      loginWithToken(data.token, data.user ?? data);
       toast({ title: "Welcome back!", description: "You've successfully signed in." });
-      window.location.href = "/";
+      navigate("/");
     } catch (error: any) {
       toast({ title: "Sign in failed", description: friendlyError(error.message), variant: "destructive" });
     } finally {
