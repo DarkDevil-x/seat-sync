@@ -46,7 +46,11 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
 }
 
-createRoot(document.getElementById("root")!).render(
+console.log("React app is mounting...");
+const rootElement = document.getElementById("root");
+console.log("Root element found:", rootElement);
+
+createRoot(rootElement!).render(
   <ErrorBoundary>
     <App />
   </ErrorBoundary>
