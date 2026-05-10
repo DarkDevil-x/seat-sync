@@ -21,9 +21,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     const seats = await Seat.find({ event_id: eventId })
-      .select('row number status seat_type label price event_id')
+      .select('row number status seat_type label price event_id updated_at')
       .sort({ row: 1, number: 1 })
       .lean();
+
+    // Lightweight etag so frontend can skip re-renders when nothing changed
+    const etag = String((seats as any[]).reduce((max, s) => {
+      const t = new Date(s.updated_at || 0).getTime();
+      return t > max ? t : max;
+    }, 0));
+    res.setHeader('x-seats-etag', etag);
 
     return res.status(200).json(seats);
   } catch (err: unknown) {

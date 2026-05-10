@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, memo } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -39,6 +39,9 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
   const selectedSeatIdsRef = useRef<string[]>([]);
   const seatsRef = useRef<Seat[]>([]);
   const onSeatSelectRef = useRef(onSeatSelect);
+  const lastServerEtag = useRef<string | null>(null);
+  const isVisibleRef = useRef(true);
+  const pollAbortRef = useRef<AbortController | null>(null);
   // Leading throttle: ignore seat clicks that arrive within 100 ms of the last one
   const lastSeatClickTime = useRef(0);
 
@@ -64,8 +67,19 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
   // ── normalise MongoDB _id → id ────────────────────────────────────────────────
   const applySeats = (raw: any[]) => {
     const list: Seat[] = raw.map((s) => ({ ...s, id: String(s._id ?? s.id) }));
-    setSeats(list);
-    setRows(Array.from(new Set(list.map((s) => s.row))).sort());
+    // Only update React state if something actually changed — avoids full seat-grid re-render
+    // on every poll when seats are idle (common case: no bookings happening)
+    const prev = seatsRef.current;
+    const hasChanges =
+      list.length !== prev.length ||
+      list.some((s) => {
+        const old = prev.find((p) => p.id === s.id);
+        return !old || old.status !== s.status;
+      });
+    if (hasChanges) {
+      setSeats(list);
+      setRows(Array.from(new Set(list.map((s) => s.row))).sort());
+    }
     return list;
   };
 
@@ -88,7 +102,17 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
     fetchSeats();
     if (user) fetchUserBookedSeats();
 
-    const pollId = setInterval(pollSeats, POLL_INTERVAL_MS);
+    const pollId = setInterval(() => {
+      if (isVisibleRef.current) pollSeats();
+    }, POLL_INTERVAL_MS);
+
+    // Pause polling when tab is hidden (saves requests + battery)
+    const handleVis = () => {
+      isVisibleRef.current = !document.hidden;
+      // When coming back to tab, do an immediate refresh
+      if (!document.hidden) pollSeats();
+    };
+    document.addEventListener("visibilitychange", handleVis);
 
     // Use keepalive fetch on tab close so the hold is released even if the
     // component unmounts after the page starts unloading
@@ -107,6 +131,8 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
 
     return () => {
       clearInterval(pollId);
+      pollAbortRef.current?.abort();
+      document.removeEventListener("visibilitychange", handleVis);
       window.removeEventListener("beforeunload", handleUnload);
       // Release on SPA navigation away
       releaseHolds(selectedSeatIdsRef.current);
@@ -183,9 +209,17 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
 
   // ── poll every 5 s; detect seats stolen from our hold ────────────────────────
   const pollSeats = async () => {
+    // Cancel any previous in-flight poll to prevent response pile-up on slow networks
+    pollAbortRef.current?.abort();
+    pollAbortRef.current = new AbortController();
     try {
-      const res = await fetch(`/api/seats?eventId=${eventId}`);
+      const res = await fetch(`/api/seats?eventId=${eventId}`, { signal: pollAbortRef.current.signal });
       if (!res.ok) return;
+      // Skip state update if server data hasn't changed
+      const etag = res.headers.get('x-seats-etag') || res.headers.get('last-modified');
+      if (etag && etag === lastServerEtag.current) return;
+      if (etag) lastServerEtag.current = etag;
+
       const normalised = applySeats(await res.json());
 
       const stolen = selectedSeatIdsRef.current.filter((id) => {
@@ -212,7 +246,8 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
           variant: "destructive",
         });
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return; // expected — previous poll cancelled
       // silent – transient poll failures should not disrupt UX
     }
   };
@@ -318,7 +353,7 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
         if (res.status === 409) {
           toast({ title: "Seat just taken", description: "This seat was just reserved by someone else.", variant: "destructive" });
           // Reflect the new status locally so the seat turns yellow immediately
-          setSeats((prev) => prev.map((s) => s.id === seat.id ? { ...s, status: "held" } : s));
+          setSeats((prev) => prev.map((s) => s.id === seat.id ? { ...s, status: "reserved" } : s));
         } else {
           toast({ title: "Could not hold seat", description: data.error || "Please try again.", variant: "destructive" });
         }
@@ -561,4 +596,4 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
   );
 };
 
-export default SeatSelection;
+export default memo(SeatSelection);
