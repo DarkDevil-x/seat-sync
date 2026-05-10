@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/providers/AuthProvider";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ export default function EventDetail() {
   const [zoom, setZoom] = useState(1);
   // Prevent double-click: ignore repeated calls within 500 ms
   const lastBookingAttempt = useRef(0);
+  const fetchAbortRef = useRef<AbortController | null>(null);
 
   const handleBookingDebounced = () => {
     const now = Date.now();
@@ -47,40 +48,34 @@ export default function EventDetail() {
   };
 
   useEffect(() => {
-    if (id) {
-      fetchEvent(id);
-    }
+    if (id) fetchEvent(id);
+    return () => { fetchAbortRef.current?.abort(); };
   }, [id]);
 
   useEffect(() => {
-    if (user && id) {
-      checkUserBookings(id);
-    }
+    if (user && id) checkUserBookings(id);
   }, [user, id]);
 
-  const fetchEvent = async (eventId: string) => {
+  const fetchEvent = useCallback(async (eventId: string) => {
+    fetchAbortRef.current?.abort();
+    fetchAbortRef.current = new AbortController();
     setLoading(true);
     try {
-      const response = await fetch(`/api/events/${eventId}`);
-      if (!response.ok) {
-        navigate("/events");
-        return;
-      }
+      const response = await fetch(`/api/events/${eventId}`, { signal: fetchAbortRef.current.signal });
+      if (!response.ok) { navigate("/events"); return; }
       const data = await response.json();
-      if (!data.is_published) {
-        navigate("/events");
-        return;
-      }
+      if (!data.is_published) { navigate("/events"); return; }
       setEvent(data as Event);
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
       console.error("Error fetching event:", error);
       navigate("/events");
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate]);
 
-  const checkUserBookings = async (eventId: string) => {
+  const checkUserBookings = useCallback(async (eventId: string) => {
     if (!user) return;
     try {
       const token = localStorage.getItem("auth_token");
@@ -89,20 +84,15 @@ export default function EventDetail() {
       });
       if (!response.ok) return;
       const bookings: any[] = await response.json();
-
-      // Filter to this event and count booked seats
       const seatCount = bookings
-        .filter((b) => {
-          const bEventId = b.event?._id ?? b.event_id ?? "";
-          return String(bEventId) === eventId;
-        })
+        .filter((b) => String(b.event?._id ?? b.event_id ?? "") === eventId)
         .reduce((sum, b) => sum + (b.booking_seats?.length ?? 0), 0);
-
       setUserBookings(seatCount);
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
       console.error("Error checking user bookings:", error);
     }
-  };
+  }, [user]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

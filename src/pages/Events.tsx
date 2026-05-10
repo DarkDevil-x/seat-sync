@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useCallback, useMemo } from "react";
+import { useState, useEffect, memo, useCallback, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -289,6 +289,7 @@ export default function Events() {
   const [sortBy, setSortBy] = useState<"date" | "price-asc" | "price-desc">("date");
   const [page, setPage] = useState(1);
   const [bookmarks, setBookmarks] = useLocalStorage<string[]>("ss_bookmarks", []);
+  const fetchAbortRef = useRef<AbortController | null>(null);
 
   const toggleBookmark = useCallback((id: string) => {
     setBookmarks((prev) =>
@@ -299,8 +300,11 @@ export default function Events() {
   // Reset page when filters change
   useEffect(() => { setPage(1); }, [search, dateFilter, freeOnly, sortBy, filter]);
 
-  // Fetch events
-  useEffect(() => { fetchEvents(); }, [filter]);
+  // Fetch events — cancel previous request when filter changes or on unmount
+  useEffect(() => {
+    fetchEvents();
+    return () => { fetchAbortRef.current?.abort(); };
+  }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchEvents = async () => {
     const now = Date.now();
@@ -311,13 +315,15 @@ export default function Events() {
       return;
     }
 
+    fetchAbortRef.current?.abort();
+    fetchAbortRef.current = new AbortController();
     setLoading(true);
     try {
       const url = new URL("/api/events", window.location.origin);
       url.searchParams.set("published", "true");
       if (filter !== "all") url.searchParams.set("category", filter);
 
-      const response = await fetch(url.toString());
+      const response = await fetch(url.toString(), { signal: fetchAbortRef.current.signal });
       if (!response.ok) throw new Error(`Failed: ${response.status}`);
 
       const data: Event[] = await response.json();
@@ -325,6 +331,7 @@ export default function Events() {
       setCategories(Array.from(new Set(data.map((e) => e.category))));
       _cache = { data, filter, ts: now };
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
       console.error("Error fetching events:", error);
     } finally {
       setLoading(false);
