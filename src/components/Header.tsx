@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/providers/AuthProvider";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { Tickets, Menu, X, Zap, User, LogOut, Settings, LayoutDashboard } from "lucide-react";
+import { Tickets, Menu, X, Zap, User, LogOut, Settings, LayoutDashboard, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -161,7 +161,7 @@ export default function Header() {
                     <DropdownMenuContent align="end" className="w-56 rounded-xl p-2 bg-background/95 backdrop-blur-xl border border-border shadow-2xl mt-2">
                       <DropdownMenuLabel className="font-normal px-2 py-1.5">
                         <div className="flex flex-col space-y-1">
-                          <p className="text-sm font-semibold leading-none">{profile?.name || "User"}</p>
+                          <p className="text-sm font-semibold leading-none">{[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "User"}</p>
                           <p className="text-xs leading-none text-muted-foreground truncate">
                             {user.email}
                           </p>
@@ -177,10 +177,16 @@ export default function Header() {
                         <span className="font-medium">Profile</span>
                       </DropdownMenuItem>
                       {isAdmin && (
-                        <DropdownMenuItem onClick={() => navigate("/admin")} className="rounded-lg cursor-pointer flex items-center gap-2 py-2 px-2 hover:bg-muted/60 transition-colors">
-                          <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">Admin Dashboard</span>
-                        </DropdownMenuItem>
+                        <>
+                          <DropdownMenuItem onClick={() => navigate("/admin")} className="rounded-lg cursor-pointer flex items-center gap-2 py-2 px-2 hover:bg-muted/60 transition-colors">
+                            <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">Admin Dashboard</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate("/admin/bookings")} className="rounded-lg cursor-pointer flex items-center gap-2 py-2 px-2 hover:bg-muted/60 transition-colors">
+                            <BookOpen className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">Manage Bookings</span>
+                          </DropdownMenuItem>
+                        </>
                       )}
                       <DropdownMenuSeparator className="bg-border/50 my-1" />
                       <DropdownMenuItem onClick={handleSignOut} className="rounded-lg cursor-pointer flex items-center gap-2 py-2 px-2 text-destructive focus:text-destructive focus:bg-destructive/10 transition-colors">
@@ -274,7 +280,7 @@ export default function Header() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col min-w-0">
-                    <p className="text-sm font-semibold leading-none truncate">{profile?.name || "User"}</p>
+                    <p className="text-sm font-semibold leading-none truncate">{[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "User"}</p>
                     <p className="text-xs text-muted-foreground mt-1 truncate">{user.email}</p>
                   </div>
                 </div>
@@ -287,6 +293,7 @@ export default function Header() {
                   ...(user ? [{ to: "/tickets", label: "My Tickets", icon: Tickets }] : []),
                   ...(user ? [{ to: "/profile", label: "Profile", icon: User }] : []),
                   ...(isAdmin ? [{ to: "/admin", label: "Admin Dashboard", icon: LayoutDashboard }] : []),
+                  ...(isAdmin ? [{ to: "/admin/bookings", label: "Manage Bookings", icon: BookOpen }] : []),
                 ].map(({ to, label, icon: Icon }, i) => (
                   <motion.div
                     key={to}

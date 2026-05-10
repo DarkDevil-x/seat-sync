@@ -1415,7 +1415,7 @@ export default function AdminDashboard() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => fetchEventBookings(event.id, event.title)}
+                                onClick={() => navigate(`/admin/bookings?eventId=${event.id}`)}
                                 disabled={!!actionLoading}
                               >
                                 <Ticket className="h-4 w-4 mr-1" /> Bookings
@@ -1493,6 +1493,12 @@ export default function AdminDashboard() {
         </TabsContent>
 
         <TabsContent value="bookings">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Bookings Overview</h2>
+            <Button size="sm" onClick={() => navigate("/admin/bookings")}>
+              Open Full Management →
+            </Button>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardContent className="p-4">
