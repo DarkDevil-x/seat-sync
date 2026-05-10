@@ -256,11 +256,9 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
     setLoading(true);
     setError(null);
     try {
-      console.log("Fetching seats for event:", eventId);
       const res = await fetch(`/api/seats?eventId=${eventId}`);
       if (!res.ok) throw new Error("Failed to fetch seats");
       const raw: any[] = await res.json();
-      console.log("Seats data:", raw.length, "seats loaded");
       if (raw.length === 0) {
         await createDefaultSeats();
         return;
@@ -278,7 +276,6 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
     setCreatingSeats(true);
     setError(null);
     try {
-      console.log("Creating default seats for event:", eventId);
       const eventRes = await fetch(`/api/events/${eventId}`);
       if (!eventRes.ok) throw new Error("Failed to fetch event details");
       const eventData = await eventRes.json();
@@ -300,7 +297,6 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
         throw new Error(e.error || "Failed to create seats");
       }
       const result = await genRes.json();
-      console.log(`Created ${result.count} default seats`);
       toast({
         title: "Seats created",
         description: `${result.count} seats have been created for this event.`,

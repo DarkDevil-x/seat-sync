@@ -1,5 +1,5 @@
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useMemo, useCallback } from "react";
 
 type User = {
   id: string;
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadFromToken = async () => {
+  const loadFromToken = useCallback(async () => {
     const token = lsGet("auth_token");
     if (!token) {
       setUser(null);
@@ -99,12 +99,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setProfile(null);
     }
     setIsLoading(false);
-  };
+  }, []);
 
   // Called directly from Auth.tsx after login/register – avoids a full page
   // reload and the extra /api/auth/me round-trip by using the data already
   // returned by the login endpoint.
-  const loginWithToken = (token: string, rawUser: Record<string, unknown>) => {
+  const loginWithToken = useCallback((token: string, rawUser: Record<string, unknown>) => {
     lsSet("auth_token", token);
     const id = String(rawUser.id ?? rawUser._id ?? "");
     setUser({ id, email: String(rawUser.email ?? "") });
@@ -120,7 +120,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       phone_number: (rawUser.phone_number as string | null) ?? null,
     });
     setIsLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     loadFromToken();
@@ -129,9 +129,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const handleAuthChange = () => loadFromToken();
     window.addEventListener("auth-change", handleAuthChange);
     return () => window.removeEventListener("auth-change", handleAuthChange);
-  }, []);
+  }, [loadFromToken]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     const token = lsGet("auth_token");
     if (token) {
       try {
@@ -146,10 +146,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     lsRemove("auth_token");
     setUser(null);
     setProfile(null);
-  };
+  }, []);
+
+  const value = useMemo(
+    () => ({ session: null as null, user, profile, isLoading, signOut, loginWithToken }),
+    [user, profile, isLoading, signOut, loginWithToken]
+  );
 
   return (
-    <AuthContext.Provider value={{ session: null, user, profile, isLoading, signOut, loginWithToken }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
