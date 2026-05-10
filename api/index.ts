@@ -58,16 +58,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (pathname === '/api/auth/update-role') return route_18(req, res);
     if (pathname === '/api/auth/users') return route_19(req, res);
 
-    const match_20 = pathname.match(/^\/api\/bookings\/([^\/]+)$/);
-    if (match_20) {
-      req.query.id = match_20[1];
-      return route_20(req, res);
-    }
     if (pathname === '/api/bookings/admin') return route_21(req, res);
     if (pathname === '/api/bookings/cancel') return route_22(req, res);
     if (pathname === '/api/bookings/export') return route_23(req, res);
     if (pathname === '/api/bookings/status') return route_24(req, res);
     if (pathname === '/api/bookings') return route_25(req, res);
+
+    const match_20 = pathname.match(/^\/api\/bookings\/([^\/]+)$/);
+    if (match_20) {
+      req.query.id = match_20[1];
+      return route_20(req, res);
+    }
 
     const match_26 = pathname.match(/^\/api\/events\/([^\/]+)$/);
     if (match_26) {

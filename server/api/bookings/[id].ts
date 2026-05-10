@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import mongoose from 'mongoose';
 import dbConnect from '../../db.js';
 import Booking from '../../models/Booking.js';
 import BookingSeat from '../../models/BookingSeat.js';
@@ -15,6 +16,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { userId } = requireAuth(req);
     const { id } = req.query as { id: string };
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid booking ID' });
+    }
 
     // Scoped to the authenticated user so users cannot access each other's bookings
     const booking = await Booking.findOne({ _id: id, user_id: userId })
