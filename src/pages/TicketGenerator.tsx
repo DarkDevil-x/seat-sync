@@ -161,12 +161,71 @@ const TicketGenerator = () => {
     setIsGeneratingTicket(true);
   };
 
-  // ── PNG download (scale updated to 3, filename updated per spec) ───────────
+  // ── Capture helper: always renders at fixed desktop layout (720px) ───────────
+  const captureTicketForExport = async (): Promise<HTMLCanvasElement> => {
+    const el = ticketRef.current!;
+
+    const container = document.createElement("div");
+    container.style.position = "fixed";
+    container.style.top = "-9999px";
+    container.style.left = "-9999px";
+    container.style.zIndex = "-9999";
+    container.style.pointerEvents = "none";
+    document.body.appendChild(container);
+
+    const clone = el.cloneNode(true) as HTMLElement;
+
+    clone.style.display = "flex";
+    clone.style.flexDirection = "row";
+    clone.style.width = "720px";
+    clone.style.minWidth = "720px";
+    clone.style.maxWidth = "720px";
+    clone.style.borderRadius = "16px";
+    clone.style.overflow = "hidden";
+    clone.style.position = "relative";
+    clone.style.border = "1px solid rgba(255,255,255,0.08)";
+
+    const stub = clone.querySelector(".ticket-stub") as HTMLElement | null;
+    if (stub) {
+      stub.style.width = "130px";
+      stub.style.minWidth = "130px";
+      stub.style.maxWidth = "130px";
+      stub.style.flexShrink = "0";
+      stub.style.flexDirection = "column";
+      stub.style.background = "#1e1b4b";
+      stub.style.borderLeft = "2px dashed rgba(255,255,255,0.3)";
+      stub.style.borderTop = "none";
+      stub.style.borderRadius = "";
+      stub.style.padding = "18px 14px";
+      stub.style.display = "flex";
+      stub.style.alignItems = "center";
+      stub.style.justifyContent = "space-between";
+      stub.style.color = "white";
+    }
+
+    container.appendChild(clone);
+
+    try {
+      return await html2canvas(clone, {
+        scale: 3,
+        backgroundColor: null,
+        useCORS: true,
+        logging: false,
+        imageTimeout: 0,
+        removeContainer: true,
+        windowWidth: 1920,
+      });
+    } finally {
+      document.body.removeChild(container);
+    }
+  };
+
+  // ── PNG download ───────────────────────────────────────────────────────────
   const downloadTicket = async () => {
     if (!ticketRef.current) return;
     setIsDownloading(true);
     try {
-      const canvas = await html2canvas(ticketRef.current, { scale: 3, backgroundColor: null, useCORS: true, logging: false, imageTimeout: 0, removeContainer: true });
+      const canvas = await captureTicketForExport();
       const link = document.createElement("a");
       link.href = canvas.toDataURL("image/png");
       link.download = `seatsync-ticket-${studentId}.png`;
@@ -179,12 +238,12 @@ const TicketGenerator = () => {
     }
   };
 
-  // ── PDF download (new) ─────────────────────────────────────────────────────
+  // ── PDF download ───────────────────────────────────────────────────────────
   const downloadPdf = async () => {
     if (!ticketRef.current) return;
     setIsDownloadingPdf(true);
     try {
-      const canvas = await html2canvas(ticketRef.current, { scale: 3, backgroundColor: null, useCORS: true, logging: false, imageTimeout: 0, removeContainer: true });
+      const canvas = await captureTicketForExport();
       const imgData = canvas.toDataURL("image/png");
       const { jsPDF } = await import("jspdf");
       const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [canvas.width / 3, canvas.height / 3] });
@@ -342,7 +401,7 @@ const TicketGenerator = () => {
                     <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.75 }}>
                       {universityName}
                     </span>
-                    <span style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 20, fontSize: 10, padding: "3px 10px", whiteSpace: "nowrap", flexShrink: 0, display: "inline-flex", alignItems: "center", lineHeight: "1" }}>
+                    <span style={{ fontSize: 10, whiteSpace: "nowrap", flexShrink: 0, display: "inline-flex", alignItems: "center", lineHeight: "1", opacity: 0.75 }}>
                       {isFree ? "Free · Event" : "Paid · Event"}
                     </span>
                   </div>
@@ -375,7 +434,7 @@ const TicketGenerator = () => {
                     </span>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                       {allSeats.length > 0 ? allSeats.map((seat: any, i: number) => (
-                        <span key={i} style={{ background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 6, fontSize: 11, fontWeight: 600, padding: "3px 8px", fontFamily: "monospace", display: "inline-flex", alignItems: "center", justifyContent: "center", lineHeight: "1", minWidth: "28px" }}>
+                        <span key={i} style={{ fontSize: 11, fontWeight: 700, fontFamily: "monospace", display: "inline-flex", alignItems: "center", justifyContent: "center", lineHeight: "1", letterSpacing: "0.04em", paddingRight: "6px" }}>
                           {seat.row}{seat.number}
                         </span>
                       )) : (
