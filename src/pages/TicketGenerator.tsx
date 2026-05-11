@@ -1,15 +1,14 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/providers/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { QrCode, Download, Ticket, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import { QrCode as QrPlaceholder, Download, Loader2, AlertCircle, RefreshCw, Sparkles, FileDown } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import html2canvas from "html2canvas";
+import QRCode from "qrcode";
 
 type FetchState = "idle" | "loading" | "success" | "not_found" | "error";
 
@@ -23,6 +22,7 @@ const TicketGenerator = () => {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
 
+  // ── Original state (unchanged) ─────────────────────────────────────────────
   const [fetchState, setFetchState] = useState<FetchState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [booking, setBooking] = useState<any>(null);
@@ -35,7 +35,21 @@ const TicketGenerator = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const ticketRef = useRef<HTMLDivElement>(null);
 
-  // Redirect unauthenticated users
+  // ── New state ──────────────────────────────────────────────────────────────
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState("");
+
+  // ── Derived values (computed before effects that depend on them) ───────────
+  const allSeats = (booking?.booking_seats ?? []).map((bs: any) => bs.seat).filter(Boolean);
+  const studentName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim() || "N/A";
+  const eventTitle  = booking?.event?.title ?? booking?.event_id?.title ?? "";
+  const eventDate   = booking?.event?.date  ?? booking?.event_id?.date  ?? "";
+  const eventVenue  = booking?.event?.location ?? booking?.event_id?.location ?? "—";
+  const isFree      = booking?.event?.is_free ?? false;
+  const totalPrice  = booking?.total_price ?? 0;
+  const canGenerate = studentId.trim().length > 0 && course.trim().length > 0;
+
+  // ── Original effects (unchanged) ───────────────────────────────────────────
   useEffect(() => {
     if (!user) {
       toast({ title: "Sign in required", description: "Please sign in to access the ticket generator.", variant: "destructive" });
@@ -43,7 +57,6 @@ const TicketGenerator = () => {
     }
   }, [user, navigate]);
 
-  // Auto-fill student_id and course from profile once loaded
   useEffect(() => {
     if (profile) {
       if (profile.student_id) setStudentId(profile.student_id);
@@ -54,7 +67,6 @@ const TicketGenerator = () => {
   const fetchBookingDetails = useCallback(async () => {
     if (!bookingId || !user) return;
 
-    // Validate MongoDB ObjectId format (24 hex chars) before making the request
     if (!/^[0-9a-fA-F]{24}$/.test(bookingId)) {
       setErrorMsg("Invalid booking ID. Please go back to My Tickets and try again.");
       setFetchState("error");
@@ -93,12 +105,35 @@ const TicketGenerator = () => {
     }
   }, [bookingId, user, navigate]);
 
-  // Trigger fetch once user + bookingId are available
   useEffect(() => {
     if (user && bookingId) fetchBookingDetails();
   }, [fetchBookingDetails]);
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // ── QR code generation — reruns whenever any field or ticket visibility changes ──
+  useEffect(() => {
+    if (!isGeneratingTicket) return;
+    const seats = (booking?.booking_seats ?? [])
+      .map((bs: any) => bs.seat)
+      .filter(Boolean)
+      .map((s: any) => `${s.row ?? ""}${s.number ?? ""}`);
+
+    const payload = JSON.stringify({
+      app: "SeatSync",
+      event: eventTitle,
+      student: studentName,
+      id: studentId,
+      course,
+      seats,
+      date: eventDate,
+      org: universityName,
+    });
+
+    QRCode.toDataURL(payload, { width: 400, margin: 2, color: { dark: "#ffffff", light: "#00000000" } })
+      .then(setQrDataUrl)
+      .catch((err) => console.error("[TicketGenerator] QR gen error:", err));
+  }, [isGeneratingTicket, universityName, studentId, course, eventTitle, studentName, eventDate, booking]);
+
+  // ── Helpers (unchanged) ────────────────────────────────────────────────────
   const formatDate = (dateString: string) => {
     const d = new Date(dateString);
     return `${d.getDate()} | ${d.getMonth() + 1} | ${d.getFullYear()}`;
@@ -117,16 +152,7 @@ const TicketGenerator = () => {
       .join(", ");
   };
 
-  const allSeats = (booking?.booking_seats ?? [])
-    .map((bs: any) => bs.seat)
-    .filter(Boolean);
-
-
-  const studentName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim() || "N/A";
-  const eventTitle  = booking?.event?.title ?? booking?.event_id?.title ?? "";
-  const eventDate   = booking?.event?.date  ?? booking?.event_id?.date  ?? "";
-  const canGenerate = studentId.trim().length > 0 && course.trim().length > 0;
-
+  // ── Original generateTicket handler (unchanged) ────────────────────────────
   const generateTicket = () => {
     if (!canGenerate) {
       toast({ title: "Missing fields", description: "Please fill in Student ID and Course to generate the ticket.", variant: "destructive" });
@@ -135,14 +161,15 @@ const TicketGenerator = () => {
     setIsGeneratingTicket(true);
   };
 
+  // ── PNG download (scale updated to 3, filename updated per spec) ───────────
   const downloadTicket = async () => {
     if (!ticketRef.current) return;
     setIsDownloading(true);
     try {
-      const canvas = await html2canvas(ticketRef.current, { scale: 2, backgroundColor: null, useCORS: true, logging: false });
+      const canvas = await html2canvas(ticketRef.current, { scale: 3, backgroundColor: null, useCORS: true, logging: false, imageTimeout: 0, removeContainer: true });
       const link = document.createElement("a");
       link.href = canvas.toDataURL("image/png");
-      link.download = `${(eventTitle || "ticket").replace(/\s+/g, "-")}-${studentId}.png`;
+      link.download = `seatsync-ticket-${studentId}.png`;
       link.click();
       toast({ title: "Downloaded!", description: "Ticket saved as PNG." });
     } catch {
@@ -152,18 +179,38 @@ const TicketGenerator = () => {
     }
   };
 
+  // ── PDF download (new) ─────────────────────────────────────────────────────
+  const downloadPdf = async () => {
+    if (!ticketRef.current) return;
+    setIsDownloadingPdf(true);
+    try {
+      const canvas = await html2canvas(ticketRef.current, { scale: 3, backgroundColor: null, useCORS: true, logging: false, imageTimeout: 0, removeContainer: true });
+      const imgData = canvas.toDataURL("image/png");
+      const { jsPDF } = await import("jspdf");
+      const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [canvas.width / 3, canvas.height / 3] });
+      pdf.addImage(imgData, "PNG", 0, 0, canvas.width / 3, canvas.height / 3, undefined, "NONE");
+      pdf.save(`seatsync-ticket-${studentId}.pdf`);
+      toast({ title: "Downloaded!", description: "Ticket saved as PDF." });
+    } catch {
+      toast({ title: "Download failed", description: "Could not generate PDF. Please try again.", variant: "destructive" });
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
+  const anyDownloading = isDownloading || isDownloadingPdf;
+
   // ── Loading skeleton ───────────────────────────────────────────────────────
   if (fetchState === "loading" || fetchState === "idle") {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <h1 className="text-2xl font-bold mb-6">Ticket Generator</h1>
+      <div className="container mx-auto py-10 px-4 max-w-6xl">
+        <Skeleton className="h-9 w-56 mb-2" />
+        <Skeleton className="h-4 w-72 mb-8" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
+          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
           </div>
-          <div><Skeleton className="h-80 w-full rounded-lg" /></div>
+          <Skeleton className="h-52 w-full rounded-2xl" />
         </div>
       </div>
     );
@@ -206,152 +253,210 @@ const TicketGenerator = () => {
     );
   }
 
-  // ── Main UI (fetchState === "success") ─────────────────────────────────────
+  // ── Main UI ────────────────────────────────────────────────────────────────
   return (
-    <div className="container mx-auto py-8 px-4">
-      <h1 className="text-2xl font-bold mb-6">Ticket Generator</h1>
+    <div className="container mx-auto py-10 px-4 max-w-6xl">
+      {/* Page header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-semibold text-foreground mb-2">Ticket Generator</h1>
+        <p className="text-sm text-muted-foreground">Generate and download your event ticket</p>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* ── Form ── */}
-        <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
 
-          <div>
-            <label htmlFor="universityName" className="block text-sm font-medium mb-1">University Name</label>
-            <Input id="universityName" value={universityName} onChange={(e) => setUniversityName(e.target.value)} />
-          </div>
+        {/* ── Form panel ────────────────────────────────────────────────────── */}
+        <div className="rounded-xl border border-border bg-card p-6">
+          <h2 className="text-xl font-semibold text-foreground mb-6">Ticket Details</h2>
+          <div className="space-y-4">
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Event Name</label>
-            <Input value={eventTitle} readOnly className="bg-muted/50 cursor-default" />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Student Name</label>
-            <Input value={studentName} readOnly className="bg-muted/50 cursor-default" />
-          </div>
-
-          <div>
-            <label htmlFor="studentId" className="block text-sm font-medium mb-1">
-              Student ID <span className="text-destructive">*</span>
-            </label>
-            <Input
-              id="studentId"
-              value={studentId}
-              onChange={(e) => setStudentId(e.target.value)}
-              placeholder="e.g. BCS2022171"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Seats ({allSeats.length})</label>
-              <Input value={formatSeatInfo()} readOnly className="bg-muted/50 cursor-default" title={formatSeatInfo()} />
-            </div>
-            <div>
-              <label htmlFor="course" className="block text-sm font-medium mb-1">
-                Course <span className="text-destructive">*</span>
+              <label htmlFor="universityName" className="block text-sm font-medium text-muted-foreground mb-1.5">
+                University Name
               </label>
-              <Input
-                id="course"
-                value={course}
-                onChange={(e) => setCourse(e.target.value)}
-                placeholder="e.g. B.Tech CSE"
-              />
+              <Input id="universityName" value={universityName} onChange={(e) => setUniversityName(e.target.value)} className="rounded-lg" />
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Event Date</label>
-            <Input value={eventDate ? formatDate(eventDate) : ""} readOnly className="bg-muted/50 cursor-default" />
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-1.5">Event Name</label>
+              <Input value={eventTitle} readOnly className="bg-muted/50 cursor-default rounded-lg" />
+            </div>
 
-          <Button className="w-full" onClick={generateTicket} disabled={!canGenerate}>
-            Generate Ticket
-          </Button>
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-1.5">Student Name</label>
+              <Input value={studentName} readOnly className="bg-muted/50 cursor-default rounded-lg" />
+            </div>
+
+            <div>
+              <label htmlFor="studentId" className="block text-sm font-medium text-muted-foreground mb-1.5">
+                Student ID <span className="text-destructive text-xs">*</span>
+              </label>
+              <Input id="studentId" value={studentId} onChange={(e) => setStudentId(e.target.value)} placeholder="e.g. BCS2022171" className="rounded-lg" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Seats ({allSeats.length})</label>
+                <Input value={formatSeatInfo()} readOnly className="bg-muted/50 cursor-default rounded-lg" title={formatSeatInfo()} />
+              </div>
+              <div>
+                <label htmlFor="course" className="block text-sm font-medium text-muted-foreground mb-1.5">
+                  Course <span className="text-destructive text-xs">*</span>
+                </label>
+                <Input id="course" value={course} onChange={(e) => setCourse(e.target.value)} placeholder="e.g. B.Tech CSE" className="rounded-lg" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-1.5">Event Date</label>
+              <Input value={eventDate ? formatDate(eventDate) : ""} readOnly className="bg-muted/50 cursor-default rounded-lg" />
+            </div>
+
+            <Button className="w-full rounded-lg py-3 font-medium gap-2" onClick={generateTicket} disabled={!canGenerate}>
+              <Sparkles className="h-4 w-4" />
+              Generate Ticket
+            </Button>
+          </div>
         </div>
 
-        {/* ── Preview ── */}
-        <div>
-          <h2 className="text-xl font-bold mb-4">Preview</h2>
+        {/* ── Preview panel ─────────────────────────────────────────────────── */}
+        <div className="md:sticky md:top-24">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-4">Preview</p>
 
           {isGeneratingTicket ? (
             <div className="space-y-4">
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <div ref={ticketRef} className="max-w-md mx-auto">
-                  <Card className="overflow-hidden border-0 shadow-lg">
-                    <div className="bg-gradient-to-r from-purple-700 to-indigo-800 text-white py-6 px-6 relative">
-                      <h2 className="text-2xl font-bold">{universityName}</h2>
-                      <div className="absolute top-0 right-0 p-2">
-                        <Ticket className="h-8 w-8 text-white opacity-50" />
+
+              {/* ── Ticket card ── */}
+              <div ref={ticketRef} className="ticket-wrapper">
+
+                {/* Main section */}
+                <div style={{
+                  flex: 1,
+                  background: "linear-gradient(135deg, #4C1D95 0%, #6D28D9 45%, #4338CA 100%)",
+                  padding: "24px 22px 20px",
+                  color: "white",
+                  minWidth: 0,
+                }}>
+
+                  {/* Top row: org + event-type badge */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                    <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.75 }}>
+                      {universityName}
+                    </span>
+                    <span style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 20, fontSize: 10, padding: "3px 10px", whiteSpace: "nowrap", flexShrink: 0, display: "inline-flex", alignItems: "center", lineHeight: "1" }}>
+                      {isFree ? "Free · Event" : "Paid · Event"}
+                    </span>
+                  </div>
+
+                  {/* Event name */}
+                  <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.15, marginTop: 10, marginBottom: 18 }}>
+                    {eventTitle || "Event Name"}
+                  </div>
+
+                  {/* Info grid: Name | Student ID | Course */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
+                    {[
+                      { label: "NAME",       value: studentName },
+                      { label: "STUDENT ID", value: studentId || "—" },
+                      { label: "COURSE",     value: course || "—" },
+                    ].map(({ label, value }) => (
+                      <div key={label}>
+                        <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.55, display: "block", marginBottom: 3 }}>
+                          {label}
+                        </span>
+                        <span style={{ fontSize: 13, fontWeight: 500 }}>{value}</span>
                       </div>
+                    ))}
+                  </div>
+
+                  {/* Seats */}
+                  <div style={{ marginBottom: 14 }}>
+                    <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.55, display: "block", marginBottom: 5 }}>
+                      SEAT(S) · {allSeats.length}
+                    </span>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                      {allSeats.length > 0 ? allSeats.map((seat: any, i: number) => (
+                        <span key={i} style={{ background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 6, fontSize: 11, fontWeight: 600, padding: "3px 8px", fontFamily: "monospace", display: "inline-flex", alignItems: "center", justifyContent: "center", lineHeight: "1", minWidth: "28px" }}>
+                          {seat.row}{seat.number}
+                        </span>
+                      )) : (
+                        <span style={{ fontSize: 13, fontWeight: 500 }}>N/A</span>
+                      )}
                     </div>
+                  </div>
 
-                    <CardContent className="p-0">
-                      <div className="grid grid-cols-4">
-                        <div className="col-span-3 bg-white p-6 text-black">
-                          <div className="mb-5">
-                            <p className="text-xs uppercase tracking-wider text-gray-500 font-medium">EVENT</p>
-                            <p className="text-lg font-bold text-black">{eventTitle}</p>
-                          </div>
-                          <div className="grid grid-cols-2 gap-5 mb-5">
-                            <div>
-                              <p className="text-xs uppercase tracking-wider text-gray-500 font-medium">NAME</p>
-                              <p className="font-medium text-black">{studentName}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs uppercase tracking-wider text-gray-500 font-medium">ID</p>
-                              <p className="font-medium text-black">{studentId}</p>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-3 gap-2">
-                            <div>
-                              <p className="text-xs uppercase tracking-wider text-gray-500 font-medium">SEAT(S) · {allSeats.length}</p>
-                              <div className="flex flex-wrap gap-1 mt-0.5">
-                                {allSeats.map((seat: any, i: number) => (
-                                  <span key={i} className="inline-block bg-purple-100 text-purple-800 text-xs font-semibold px-1.5 py-0.5 rounded">
-                                    {seat.row}{seat.number}
-                                  </span>
-                                ))}
-                                {allSeats.length === 0 && <p className="font-medium text-black">N/A</p>}
-                              </div>
-                            </div>
-                            <div>
-                              <p className="text-xs uppercase tracking-wider text-gray-500 font-medium">COURSE</p>
-                              <p className="font-medium text-black">{course}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs uppercase tracking-wider text-gray-500 font-medium">DATE</p>
-                              <p className="font-medium text-black">{eventDate ? formatDate(eventDate) : "—"}</p>
-                            </div>
-                          </div>
-                        </div>
+                  {/* Bottom meta: Date | Venue | Price */}
+                  <div style={{ display: "flex", gap: 20, flexWrap: "wrap", borderTop: "1px solid rgba(255,255,255,0.15)", paddingTop: 12, marginTop: 14 }}>
+                    {[
+                      { label: "DATE",  value: eventDate ? formatDate(eventDate) : "—" },
+                      { label: "VENUE", value: eventVenue },
+                      { label: "PRICE", value: isFree ? "Free" : totalPrice > 0 ? `$${totalPrice.toFixed(2)}` : "—" },
+                    ].map(({ label, value }) => (
+                      <div key={label}>
+                        <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.55, display: "block", marginBottom: 3 }}>
+                          {label}
+                        </span>
+                        <span style={{ fontSize: 13, fontWeight: 500 }}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-                        <div className="bg-gradient-to-b from-indigo-100 to-purple-100 flex items-center justify-center p-4">
-                          <QrCode size={100} className="text-black" />
-                        </div>
+                {/* Tear stub */}
+                <div className="ticket-stub">
+                  <div style={{ textAlign: "center" }}>
+                    <span style={{ fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.45, display: "block", marginBottom: 2 }}>EVENT</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.2, opacity: 0.9, display: "block" }}>
+                      {(eventTitle || "Event").split(" ").slice(0, 3).join(" ")}
+                    </span>
+                  </div>
+                  <div style={{ textAlign: "center" }}>
+                    <span style={{ fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.45, display: "block", marginBottom: 4 }}>SCAN</span>
+                    {qrDataUrl ? (
+                      <img src={qrDataUrl} width={72} height={72} style={{ borderRadius: 6 }} alt="QR code" />
+                    ) : (
+                      <div style={{ width: 72, height: 72, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.4 }}>
+                        <QrPlaceholder size={48} />
                       </div>
-                      <div className="border-t border-gray-200 py-3 px-6 bg-gray-50 text-center text-xs text-gray-500">
-                        Scan QR code at entry • This ticket is non-transferable
-                      </div>
-                    </CardContent>
-                  </Card>
+                    )}
+                  </div>
+                  <div style={{ textAlign: "center" }}>
+                    <span style={{ fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.45, display: "block", marginBottom: 2 }}>SEATS</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "monospace", letterSpacing: "0.05em" }}>
+                      {formatSeatInfo()}
+                    </span>
+                  </div>
+                  <div style={{ textAlign: "center" }}>
+                    <span style={{ fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.45, display: "block", marginBottom: 2 }}>DATE</span>
+                    <span style={{ fontSize: 10, opacity: 0.7 }}>
+                      {eventDate ? formatDate(eventDate) : "—"}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.4 }}>
+                    SEATSYNC
+                  </span>
                 </div>
               </div>
 
-              <div className="text-center">
-                <Button onClick={downloadTicket} disabled={isDownloading} className="gap-2">
-                  {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download size={16} />}
-                  {isDownloading ? "Downloading…" : "Download Ticket"}
+              {/* Download buttons */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button onClick={downloadTicket} disabled={anyDownloading} className="flex-1 gap-2 rounded-lg">
+                  {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  {isDownloading ? "Generating…" : "Download PNG"}
+                </Button>
+                <Button variant="outline" onClick={downloadPdf} disabled={anyDownloading} className="flex-1 gap-2 rounded-lg">
+                  {isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                  {isDownloadingPdf ? "Generating…" : "Download PDF"}
                 </Button>
               </div>
+
             </div>
           ) : (
-            <div className="bg-muted h-80 flex items-center justify-center rounded-lg border border-dashed">
+            <div className="bg-muted h-52 flex items-center justify-center rounded-2xl border border-dashed border-border">
               <div className="text-center px-6">
-                <QrCode size={48} className="mx-auto mb-3 text-muted-foreground" />
+                <QrPlaceholder size={40} className="mx-auto mb-3 text-muted-foreground/40" />
                 <p className="text-muted-foreground text-sm">
                   {canGenerate
-                    ? 'Click "Generate Ticket" to see your ticket preview'
+                    ? 'Click "Generate Ticket" to preview your ticket'
                     : "Fill in Student ID and Course, then click Generate Ticket"}
                 </p>
               </div>

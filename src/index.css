@@ -523,4 +523,57 @@
     @apply animate-fade-in-up;
     animation-duration: 0.35s;
   }
+
+  /* ── Ticket card ─────────────────────────────────────────────────────── */
+  .ticket-wrapper {
+    display: flex;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    position: relative;
+  }
+
+  .ticket-stub {
+    position: relative;
+    width: 130px;
+    flex-shrink: 0;
+    background: #1e1b4b;
+    border-left: 2px dashed rgba(255, 255, 255, 0.3);
+    padding: 18px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    color: white;
+  }
+
+  .ticket-stub::before,
+  .ticket-stub::after {
+    content: '';
+    position: absolute;
+    left: -11px;
+    width: 22px;
+    height: 22px;
+    background: hsl(var(--background));
+    border-radius: 50%;
+    z-index: 2;
+  }
+  .ticket-stub::before { top: -11px; }
+  .ticket-stub::after  { bottom: -11px; }
+}
+
+/* ── Ticket mobile overrides (outside @layer so media query works) ──── */
+@media (max-width: 640px) {
+  .ticket-wrapper { flex-direction: column; }
+  .ticket-stub {
+    width: 100%;
+    border-left: none;
+    border-top: 2px dashed rgba(255, 255, 255, 0.3);
+    flex-direction: row;
+    justify-content: space-around;
+    padding: 14px 16px;
+    border-radius: 0 0 16px 16px;
+  }
+  .ticket-stub::before { top: -11px; left: 10%;  bottom: auto; right: auto; }
+  .ticket-stub::after  { top: -11px; left: auto; right: 10%; bottom: auto; }
 }
