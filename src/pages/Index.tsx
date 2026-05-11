@@ -5,7 +5,6 @@ import { FeaturesSection } from "@/components/FeaturesSection";
 import { TestimonialsSection } from "@/components/TestimonialsSection";
 import { NewsletterSection } from "@/components/NewsletterSection";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
 import { Calendar, Music, Trophy, Mic2, Coffee, Palette } from "lucide-react";
 
 const categories = [
@@ -23,13 +22,8 @@ function CategoryBar() {
       <div className="container max-w-7xl mx-auto px-4">
         <div className="flex items-center gap-3 py-4 overflow-x-auto scrollbar-none">
           <p className="text-xs font-semibold text-muted-foreground whitespace-nowrap uppercase tracking-wider mr-2">Browse by</p>
-          {categories.map(({ label, icon: Icon, bg, text, color }, i) => (
-            <motion.div
-              key={label}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.05 }}
-            >
+          {categories.map(({ label, icon: Icon, bg, text }, i) => (
+            <div key={label} className="animate-fadeIn" style={{ animationDelay: `${i * 40}ms` }}>
               <Link
                 to={`/events?category=${label.toLowerCase()}`}
                 className={`flex items-center gap-2 whitespace-nowrap rounded-full ${bg} ${text} px-5 py-2.5 text-sm font-semibold border border-current/10 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all duration-200`}
@@ -37,7 +31,7 @@ function CategoryBar() {
                 <Icon className="h-3.5 w-3.5" />
                 {label}
               </Link>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

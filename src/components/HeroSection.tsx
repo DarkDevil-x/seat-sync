@@ -1,232 +1,186 @@
 import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { ArrowRight, Sparkles, TrendingUp, Shield } from "lucide-react";
+import { ArrowRight, Zap, Calendar, MapPin } from "lucide-react";
 
-// ── Animated counter ──────────────────────────────────────────────────────────
-function useCountUp(target: number, duration = 1800) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    const startTime = Date.now();
-    const frame = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.floor(eased * target));
-      if (progress < 1) requestAnimationFrame(frame);
-    };
-    const raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
-  }, [target, duration]);
-  return count;
-}
-
-const stats = [
-  { label: "Events Hosted", value: 1200, suffix: "+" },
-  { label: "Happy Attendees", value: 50, suffix: "K+" },
-  { label: "Cities Covered", value: 30, suffix: "+" },
+const TRUST_ITEMS = [
+  { label: "Live seat maps" },
+  { label: "Instant confirmation" },
+  { label: "Secure checkout" },
 ];
 
-const badges = [
-  { icon: Sparkles, label: "Real-time seat selection" },
-  { icon: TrendingUp, label: "Live availability" },
-  { icon: Shield, label: "Secure checkout" },
+const FLOATING_CARDS = [
+  {
+    title: "Summer Music Fest",
+    date: "Sat, Aug 10",
+    location: "Central Park, NY",
+    price: "$49",
+    badge: "Selling fast",
+    badgeColor: "bg-orange-500",
+  },
+  {
+    title: "Tech Conference 2025",
+    date: "Fri, Sep 5",
+    location: "Moscone Center, SF",
+    price: "Free",
+    badge: "Featured",
+    badgeColor: "bg-primary",
+  },
 ];
-
-// ── Individual Stat ───────────────────────────────────────────────────────────
-function StatItem({ label, value, suffix, delay }: { label: string; value: number; suffix: string; delay: number }) {
-  const count = useCountUp(value, 1600);
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay }}
-      className="text-center"
-    >
-      <div className="text-2xl md:text-3xl font-extrabold text-foreground tabular-nums">
-        {count.toLocaleString()}{suffix}
-      </div>
-      <div className="text-xs md:text-sm text-muted-foreground font-medium mt-0.5">{label}</div>
-    </motion.div>
-  );
-}
 
 export function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-slate-950 dark:via-purple-950/60 dark:to-slate-900 min-h-[calc(80vh-4rem)] flex items-center -mt-16 pt-16 lg:pt-20">
-      {/* ── Noise texture overlay ─────────────────────────────────── */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/60 dark:to-slate-950/60 pointer-events-none" />
+    <section className="relative min-h-[92vh] flex items-center overflow-hidden bg-background">
+      {/* ── Ambient background ────────────────────────────────── */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-40 dark:opacity-60 pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full bg-primary/10 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-[500px] h-[400px] bg-blue-500/8 blur-[100px] pointer-events-none" />
 
-      <div className="container relative z-10 py-16 md:py-28 lg:py-32 max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-14 lg:gap-10 items-center">
+      <div className="container max-w-7xl mx-auto px-4 py-24 md:py-32 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
-          {/* ── Left column ─────────────────────────────────────────── */}
-          <div className="space-y-7">
-            {/* Badge */}
-            <motion.div
-              initial={{ opacity: 0, y: -12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="inline-block"
+          {/* ── Left: Copy ──────────────────────────────────────── */}
+          <div className="flex flex-col gap-7">
+            {/* Eyebrow badge */}
+            <div
+              className="inline-flex items-center gap-2 self-start rounded-full border border-primary/25 bg-primary/8 px-4 py-1.5 text-xs font-semibold text-primary animate-fadeIn"
+              style={{ animationDelay: "0ms" }}
             >
-              <div className="inline-flex items-center gap-2 rounded-full border border-purple-500/20 dark:border-purple-500/30 bg-purple-500/10 px-4 py-1.5 text-xs font-semibold text-purple-700 dark:text-purple-300 backdrop-blur-sm">
-                <motion.span
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                  className="h-1.5 w-1.5 rounded-full bg-purple-400"
-                />
-                New feature — Live seat selection
-              </div>
-            </motion.div>
+              <Zap className="h-3 w-3" />
+              Real-time seat selection — live updates
+            </div>
 
-            {/* Heading */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+            {/* Headline */}
+            <h1
+              className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.08] animate-fadeIn"
+              style={{ animationDelay: "60ms" }}
             >
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-foreground leading-[1.08]">
-                <span className="block">Book events with</span>
-                <span className="block bg-gradient-to-r from-purple-400 via-violet-300 to-blue-400 bg-clip-text text-transparent mt-1">
-                  real-time updates
-                </span>
-              </h1>
-            </motion.div>
+              Book events{" "}
+              <span className="gradient-text">you'll love,</span>
+              <br />
+              seats you'll remember.
+            </h1>
 
-            {/* Subtitle */}
-            <motion.p
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-              className="text-lg md:text-xl text-muted-foreground max-w-lg leading-relaxed"
+            {/* Subtext */}
+            <p
+              className="text-lg text-muted-foreground max-w-lg leading-relaxed animate-fadeIn"
+              style={{ animationDelay: "120ms" }}
             >
-              Discover and book seats for the best concerts, sports events, and performances with our
-              real-time seat selection system.
-            </motion.p>
+              Discover concerts, sports, theatre and more. Reserve your spot in seconds with live seat availability and instant ticket delivery.
+            </p>
 
-            {/* Feature badges */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.28 }}
-              className="flex flex-wrap gap-2"
+            {/* CTAs */}
+            <div
+              className="flex flex-col sm:flex-row gap-3 animate-fadeIn"
+              style={{ animationDelay: "180ms" }}
             >
-              {badges.map(({ icon: Icon, label }) => (
-                <div
+              <Link
+                to="/events"
+                className="inline-flex items-center justify-center gap-2 gradient-primary rounded-xl px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/30 hover:opacity-90 hover:shadow-xl hover:shadow-primary/40 active:scale-95 transition-all duration-200"
+              >
+                Browse Events
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                to="/auth"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 backdrop-blur-sm px-6 py-3 text-sm font-semibold text-foreground hover:bg-muted/60 hover:border-primary/30 active:scale-95 transition-all duration-200"
+              >
+                Create free account
+              </Link>
+            </div>
+
+            {/* Trust badges */}
+            <div
+              className="flex flex-wrap items-center gap-3 animate-fadeIn"
+              style={{ animationDelay: "240ms" }}
+            >
+              {TRUST_ITEMS.map(({ label }) => (
+                <span
                   key={label}
-                  className="flex items-center gap-1.5 rounded-full bg-slate-900/5 dark:bg-white/6 border border-slate-900/10 dark:border-white/12 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 backdrop-blur-sm"
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground"
                 >
-                  <Icon className="h-3 w-3 text-purple-500 dark:text-purple-400" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
                   {label}
-                </div>
+                </span>
               ))}
-            </motion.div>
-
-            {/* CTA Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.35 }}
-              className="flex flex-col sm:flex-row gap-4"
-            >
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="w-full sm:w-auto">
-                <Link
-                  to="/events"
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 px-7 py-3.5 text-base font-bold text-white shadow-xl shadow-purple-500/20 dark:shadow-purple-500/30 hover:shadow-purple-500/30 dark:hover:shadow-purple-500/45 hover:opacity-95 transition-all duration-200"
-                >
-                  Browse Events
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </motion.div>
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="w-full sm:w-auto">
-                <Link
-                  to="/auth"
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-white/20 bg-white/50 dark:bg-white/6 px-7 py-3.5 text-base font-semibold text-slate-700 dark:text-white backdrop-blur-sm hover:bg-slate-50 dark:hover:bg-white/12 hover:border-slate-300 dark:hover:border-white/30 transition-all duration-200 shadow-sm"
-                >
-                  Create Account
-                </Link>
-              </motion.div>
-            </motion.div>
+            </div>
 
             {/* Social proof */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.45 }}
-              className="flex items-center gap-3"
+            <div
+              className="flex items-center gap-3 animate-fadeIn"
+              style={{ animationDelay: "280ms" }}
             >
               <div className="flex -space-x-2">
-                {[...Array(5)].map((_, i) => (
+                {["7", "12", "25", "44"].map((seed) => (
                   <div
-                    key={i}
-                    className="w-8 h-8 rounded-full border-2 border-background ring-1 ring-border/50"
-                    style={{
-                      background: `linear-gradient(${135 + i * 30}deg, hsl(${262 + i * 20} 83% 60%), hsl(${221 + i * 15} 83% 55%))`,
-                    }}
-                  />
+                    key={seed}
+                    className="h-8 w-8 rounded-full border-2 border-background bg-gradient-to-br from-primary/30 to-violet-400/30 flex items-center justify-center text-[10px] font-bold text-primary"
+                  >
+                    {seed[0]}
+                  </div>
                 ))}
               </div>
               <p className="text-sm text-muted-foreground">
-                <span className="font-bold text-foreground">1,000+</span>{" "}
-                users booked this month
+                <span className="font-semibold text-foreground">1,200+</span> tickets booked this month
               </p>
-            </motion.div>
+            </div>
           </div>
 
-          {/* ── Right column ─────────────────────────────────────────── */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="relative lg:pl-10"
-          >
+          {/* ── Right: Visual ────────────────────────────────────── */}
+          <div className="relative hidden lg:flex flex-col gap-4 items-end animate-fadeInScale" style={{ animationDelay: "100ms" }}>
             {/* Main image */}
-            <motion.div
-              animate={{ y: [0, -8, 0] }}
-              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-              className="relative z-10 rounded-2xl overflow-hidden border border-slate-200/50 dark:border-white/10 shadow-2xl shadow-purple-900/10 dark:shadow-purple-900/50 ring-1 ring-slate-200 dark:ring-white/5 bg-white dark:bg-transparent"
-            >
+            <div className="relative w-full rounded-2xl overflow-hidden border border-border shadow-2xl">
               <img
-                src="https://static.vecteezy.com/system/resources/thumbnails/041/388/388/small/ai-generated-concert-crowd-enjoying-live-music-event-photo.jpg"
-                alt="Event booking illustration"
-                className="w-full h-auto object-cover aspect-[4/3]"
+                src="https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&q=80"
+                alt="Live concert crowd"
+                className="w-full aspect-[16/10] object-cover"
                 loading="eager"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+            </div>
 
-              {/* Floating badge */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.6, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                className="absolute bottom-4 left-4 right-4"
-              >
-                <div className="flex items-center justify-between rounded-xl bg-black/60 backdrop-blur-md border border-white/10 px-4 py-3">
-                  <div>
-                    <p className="text-xs text-slate-400 font-medium">Live Now</p>
-                    <p className="text-sm font-bold text-white">Summer Music Festival</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-300">Seats left</p>
-                    <p className="text-sm font-bold text-orange-400">12 remaining</p>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          </motion.div>
+            {/* Floating card 1 */}
+            <div
+              className="absolute -left-8 top-8 w-64 rounded-2xl border border-border bg-background/90 backdrop-blur-xl p-4 shadow-xl animate-float"
+              style={{ animationDelay: "0.3s" }}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <p className="text-sm font-bold text-foreground leading-tight">{FLOATING_CARDS[0].title}</p>
+                <span className={`text-[10px] font-bold text-white rounded-full px-2 py-0.5 ${FLOATING_CARDS[0].badgeColor}`}>
+                  {FLOATING_CARDS[0].badge}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><Calendar className="h-3 w-3 text-primary/60" />{FLOATING_CARDS[0].date}</span>
+                <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-primary/60" />{FLOATING_CARDS[0].location}</span>
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-sm font-extrabold text-foreground">{FLOATING_CARDS[0].price}</span>
+                <span className="text-xs text-primary font-semibold">Book now →</span>
+              </div>
+            </div>
+
+            {/* Floating card 2 */}
+            <div
+              className="absolute -right-6 bottom-12 w-60 rounded-2xl border border-border bg-background/90 backdrop-blur-xl p-4 shadow-xl animate-float"
+              style={{ animationDelay: "0.8s" }}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <p className="text-sm font-bold text-foreground leading-tight">{FLOATING_CARDS[1].title}</p>
+                <span className={`text-[10px] font-bold text-white rounded-full px-2 py-0.5 ${FLOATING_CARDS[1].badgeColor}`}>
+                  {FLOATING_CARDS[1].badge}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><Calendar className="h-3 w-3 text-primary/60" />{FLOATING_CARDS[1].date}</span>
+                <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-primary/60" />{FLOATING_CARDS[1].location}</span>
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-sm font-extrabold text-foreground">{FLOATING_CARDS[1].price}</span>
+                <span className="text-xs text-primary font-semibold">Book now →</span>
+              </div>
+            </div>
+          </div>
+
         </div>
-
-        {/* ── Stats strip ─────────────────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.55 }}
-          className="mt-12 md:mt-20 grid grid-cols-1 sm:grid-cols-3 gap-6 md:gap-12 border-t border-border/60 pt-10"
-        >
-          {stats.map((s, i) => (
-            <StatItem key={s.label} {...s} delay={0.6 + i * 0.1} />
-          ))}
-        </motion.div>
       </div>
     </section>
   );

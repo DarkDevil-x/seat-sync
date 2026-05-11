@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Calendar, MapPin, Search, SlidersHorizontal, Zap, Heart, ArrowRight, X } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { motion, AnimatePresence } from "framer-motion";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Event = {
@@ -39,12 +38,9 @@ const formatDate = (dateString: string) =>
 
 // ── Shimmer Skeleton Card ─────────────────────────────────────────────────────
 const SkeletonCard = ({ index }: { index: number }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 16 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.4, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
-    className="flex flex-col rounded-2xl overflow-hidden border border-border bg-card"
-    style={{ minHeight: "420px" }}
+  <div
+    className="flex flex-col rounded-2xl overflow-hidden border border-border bg-card animate-fadeIn"
+    style={{ minHeight: "420px", animationDelay: `${index * 50}ms` }}
   >
     {/* Image shimmer */}
     <div className="shimmer flex-shrink-0" style={{ paddingTop: "56.25%", position: "relative" }}>
@@ -61,7 +57,7 @@ const SkeletonCard = ({ index }: { index: number }) => (
         <div className="shimmer h-9 w-full rounded-xl" />
       </div>
     </div>
-  </motion.div>
+  </div>
 );
 
 // ── Memoised Event Card ───────────────────────────────────────────────────────
@@ -83,14 +79,7 @@ const EventCard = memo(({ event, index, bookmarked, onToggleBookmark }: {
     isSoldOut ? "bg-red-500" : availability < 30 ? "bg-orange-400" : "bg-emerald-500";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.45, delay: index * 0.06, ease: [0.22, 1, 0.36, 1] }}
-      layout
-      className="h-full"
-    >
+    <div className="h-full animate-fadeIn" style={{ animationDelay: `${(index % 8) * 60}ms` }}>
       <div
         className="group relative flex flex-col h-full rounded-2xl overflow-hidden border border-border bg-card transition-all duration-300 hover:-translate-y-1.5 hover:border-primary/30"
         style={{
@@ -151,10 +140,8 @@ const EventCard = memo(({ event, index, bookmarked, onToggleBookmark }: {
             </div>
 
             {/* Bookmark */}
-            <motion.button
-              whileHover={{ scale: 1.15 }}
-              whileTap={{ scale: 0.88 }}
-              className="absolute bottom-3 right-3 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center border border-white/15 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-sm"
+            <button
+              className="absolute bottom-3 right-3 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center border border-white/15 opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-sm hover:scale-110 active:scale-95"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -167,7 +154,7 @@ const EventCard = memo(({ event, index, bookmarked, onToggleBookmark }: {
                   bookmarked ? "fill-red-500 text-red-500" : "text-foreground"
                 }`}
               />
-            </motion.button>
+            </button>
           </div>
         </Link>
 
@@ -214,11 +201,9 @@ const EventCard = memo(({ event, index, bookmarked, onToggleBookmark }: {
                 </span>
               </div>
               <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                <motion.div
-                  className={`h-full rounded-full ${availColor}`}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${availability}%` }}
-                  transition={{ duration: 0.9, delay: index * 0.06 + 0.3, ease: "easeOut" }}
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${availColor}`}
+                  style={{ width: `${availability}%` }}
                 />
               </div>
             </div>
@@ -226,23 +211,21 @@ const EventCard = memo(({ event, index, bookmarked, onToggleBookmark }: {
 
           {/* CTA Button */}
           <div className="pt-3 border-t border-border/60 mt-auto">
-            <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}>
-              <Link
-                to={`/events/${event.id}`}
-                className={`flex w-full items-center justify-center gap-1.5 rounded-xl h-9 text-sm font-semibold transition-all duration-200
-                  ${isSoldOut
-                    ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60"
-                    : "bg-primary text-primary-foreground hover:opacity-90 hover:shadow-md hover:shadow-primary/25"
-                  }`}
-              >
-                {isSoldOut ? "Sold Out" : "View Details"}
-                {!isSoldOut && <ArrowRight className="h-3.5 w-3.5" />}
-              </Link>
-            </motion.div>
+            <Link
+              to={`/events/${event.id}`}
+              className={`flex w-full items-center justify-center gap-1.5 rounded-xl h-9 text-sm font-semibold transition-all duration-200
+                ${isSoldOut
+                  ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60"
+                  : "bg-primary text-primary-foreground hover:opacity-90 hover:shadow-md hover:shadow-primary/25"
+                }`}
+            >
+              {isSoldOut ? "Sold Out" : "View Details"}
+              {!isSoldOut && <ArrowRight className="h-3.5 w-3.5" />}
+            </Link>
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 });
 EventCard.displayName = "EventCard";
@@ -260,18 +243,16 @@ const FilterPill = memo(({ label, active, onClick, color }: {
     : "bg-primary text-primary-foreground shadow-[0_0_12px_hsl(var(--primary)/0.4)]";
 
   return (
-    <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
+    <button
       onClick={onClick}
-      className={`cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 select-none border
+      className={`cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 select-none border active:scale-95
         ${active
           ? `${activeClass} border-transparent scale-105`
           : "bg-secondary text-secondary-foreground border-border hover:border-primary/30 hover:bg-secondary/70"
         }`}
     >
       {label}
-    </motion.button>
+    </button>
   );
 });
 FilterPill.displayName = "FilterPill";
@@ -387,12 +368,7 @@ export default function Events() {
       <div className="container mx-auto py-10 px-4 max-w-7xl">
 
         {/* ── Page Header ─────────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="mb-8"
-        >
+        <div className="mb-8 animate-fadeIn">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">
@@ -404,26 +380,16 @@ export default function Events() {
               </p>
             </div>
             {!loading && filtered.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, x: 16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 }}
-                className="flex items-center gap-2 rounded-full bg-muted/80 backdrop-blur-sm border border-border px-4 py-2 text-sm font-medium text-muted-foreground"
-              >
+              <div className="flex items-center gap-2 rounded-full bg-muted/80 backdrop-blur-sm border border-border px-4 py-2 text-sm font-medium text-muted-foreground">
                 <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 {filtered.length} event{filtered.length !== 1 ? "s" : ""} available
-              </motion.div>
+              </div>
             )}
           </div>
-        </motion.div>
+        </div>
 
         {/* ── Search + Sort ────────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="flex flex-col sm:flex-row gap-3 mb-5"
-        >
+        <div className="flex flex-col sm:flex-row gap-3 mb-5">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <input
@@ -434,15 +400,13 @@ export default function Events() {
               id="events-search"
             />
             {searchRaw && (
-              <motion.button
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0 }}
+              <button
                 onClick={clearSearch}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Clear search"
               >
                 <X className="h-4 w-4" />
-              </motion.button>
+              </button>
             )}
           </div>
 
@@ -456,15 +420,10 @@ export default function Events() {
             <option value="price-asc">💰 Price (low→high)</option>
             <option value="price-desc">💎 Price (high→low)</option>
           </select>
-        </motion.div>
+        </div>
 
         {/* ── Filter Pills ─────────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.15 }}
-          className="flex flex-wrap items-center gap-2 mb-7"
-        >
+        <div className="flex flex-wrap items-center gap-2 mb-7">
           {["all", ...categories].map((cat) => (
             <FilterPill
               key={cat}
@@ -500,10 +459,7 @@ export default function Events() {
           />
 
           {hasActiveFilters && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
+            <button
               onClick={() => {
                 setFilter("all");
                 setDateFilter("all");
@@ -514,115 +470,89 @@ export default function Events() {
             >
               <X className="h-3 w-3" />
               Clear all
-            </motion.button>
+            </button>
           )}
-        </motion.div>
+        </div>
 
         {/* ── Content ──────────────────────────────────────────── */}
-        <AnimatePresence mode="wait">
-          {loading ? (
-            <motion.div
-              key="skeleton"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {Array(8).fill(0).map((_, i) => (
+              <SkeletonCard key={i} index={i} />
+            ))}
+          </div>
+        ) : events.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center animate-fadeIn">
+            <div className="text-6xl mb-4">🎭</div>
+            <h2 className="text-2xl font-bold mb-2">No events yet</h2>
+            <p className="text-muted-foreground max-w-sm">
+              {filter !== "all"
+                ? "Try selecting a different category"
+                : "Check back later for upcoming events"}
+            </p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center animate-fadeIn">
+            <div className="text-6xl mb-4">🔍</div>
+            <h2 className="text-2xl font-bold mb-2">No results found</h2>
+            <p className="text-muted-foreground max-w-sm">
+              {search
+                ? `No events matching "${search}". Try a different search term.`
+                : "Try adjusting your filters to find what you're looking for."}
+            </p>
+            <Button
+              variant="outline"
+              className="mt-6 rounded-xl"
+              onClick={() => {
+                setFilter("all");
+                setDateFilter("all");
+                setFreeOnly(false);
+                setSearchRaw("");
+              }}
             >
-              {Array(8).fill(0).map((_, i) => (
-                <SkeletonCard key={i} index={i} />
+              Clear Filters
+            </Button>
+          </div>
+        ) : (
+          <div className="animate-fadeIn">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {paginated.map((event, i) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  index={i}
+                  bookmarked={bookmarks.includes(event.id)}
+                  onToggleBookmark={toggleBookmark}
+                />
               ))}
-            </motion.div>
-          ) : events.length === 0 ? (
-            <motion.div
-              key="empty-all"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center py-24 text-center"
-            >
-              <div className="text-6xl mb-4">🎭</div>
-              <h2 className="text-2xl font-bold mb-2">No events yet</h2>
-              <p className="text-muted-foreground max-w-sm">
-                {filter !== "all"
-                  ? "Try selecting a different category"
-                  : "Check back later for upcoming events"}
-              </p>
-            </motion.div>
-          ) : filtered.length === 0 ? (
-            <motion.div
-              key="empty-filtered"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center py-24 text-center"
-            >
-              <div className="text-6xl mb-4">🔍</div>
-              <h2 className="text-2xl font-bold mb-2">No results found</h2>
-              <p className="text-muted-foreground max-w-sm">
-                {search
-                  ? `No events matching "${search}". Try a different search term.`
-                  : "Try adjusting your filters to find what you're looking for."}
-              </p>
-              <Button
-                variant="outline"
-                className="mt-6 rounded-xl"
-                onClick={() => {
-                  setFilter("all");
-                  setDateFilter("all");
-                  setFreeOnly(false);
-                  setSearchRaw("");
-                }}
-              >
-                Clear Filters
-              </Button>
-            </motion.div>
-          ) : (
-            <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                <AnimatePresence>
-                  {paginated.map((event, i) => (
-                    <EventCard
-                      key={event.id}
-                      event={event}
-                      index={i}
-                      bookmarked={bookmarks.includes(event.id)}
-                      onToggleBookmark={toggleBookmark}
-                    />
-                  ))}
-                </AnimatePresence>
-              </div>
+            </div>
 
-              {/* Load More */}
-              {hasMore && (
-                <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex flex-col items-center gap-2 mt-10"
+            {/* Load More */}
+            {hasMore && (
+              <div className="flex flex-col items-center gap-2 mt-10">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => setPage((p) => p + 1)}
+                  className="rounded-xl px-8 font-semibold hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-200"
                 >
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={() => setPage((p) => p + 1)}
-                    className="rounded-xl px-8 font-semibold hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-200"
-                  >
-                    Load More
-                    <span className="ml-2 text-xs opacity-70">
-                      ({filtered.length - paginated.length} remaining)
-                    </span>
-                  </Button>
-                  <p className="text-xs text-muted-foreground">
-                    Showing {paginated.length} of {filtered.length} events
-                  </p>
-                </motion.div>
-              )}
-              {!hasMore && filtered.length > PAGE_SIZE && (
-                <p className="text-center text-xs text-muted-foreground mt-8">
-                  All {filtered.length} events loaded
+                  Load More
+                  <span className="ml-2 text-xs opacity-70">
+                    ({filtered.length - paginated.length} remaining)
+                  </span>
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Showing {paginated.length} of {filtered.length} events
                 </p>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </div>
+            )}
+            {!hasMore && filtered.length > PAGE_SIZE && (
+              <p className="text-center text-xs text-muted-foreground mt-8">
+                All {filtered.length} events loaded
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

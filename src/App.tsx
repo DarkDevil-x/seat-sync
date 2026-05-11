@@ -8,9 +8,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from 'next-themes';
 import { AuthProvider } from "./providers/AuthProvider";
 import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import NotFound from "./pages/NotFound";
 import Header from "./components/Header";
+const Auth           = lazy(() => import("./pages/Auth"));
+const NotFound       = lazy(() => import("./pages/NotFound"));
 
 const Events        = lazy(() => import("./pages/Events"));
 const EventDetail   = lazy(() => import("./pages/EventDetail"));

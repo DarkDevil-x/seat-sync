@@ -17,6 +17,10 @@ export default {
 				'2xl': '1400px'
 			}
 		},
+		fontFamily: {
+			sans: ['Geist', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+			mono: ['Geist Mono', 'ui-monospace', 'monospace'],
+		},
 		extend: {
 			colors: {
 				border: 'hsl(var(--border))',
@@ -102,6 +106,18 @@ export default {
 				'slide-bar': {
 					'0%':   { transform: 'translateX(-100%)' },
 					'100%': { transform: 'translateX(300%)' }
+				},
+				'fadeIn': {
+					from: { opacity: '0', transform: 'translateY(10px)' },
+					to:   { opacity: '1', transform: 'translateY(0)' }
+				},
+				'fadeInScale': {
+					from: { opacity: '0', transform: 'scale(0.96) translateY(8px)' },
+					to:   { opacity: '1', transform: 'scale(1) translateY(0)' }
+				},
+				'shimmer': {
+					'0%':   { backgroundPosition: '-200% 0' },
+					'100%': { backgroundPosition: '200% 0' }
 				}
 			},
 			animation: {
@@ -112,7 +128,10 @@ export default {
 				'fade-in': 'fade-in 0.4s ease-out both',
 				'fade-in-up': 'fade-in-up 0.5s cubic-bezier(0.22,1,0.36,1) both',
 				'scale-in': 'scale-in 0.35s cubic-bezier(0.22,1,0.36,1) both',
-				'slide-bar': 'slide-bar 1.5s ease-in-out infinite'
+				'slide-bar': 'slide-bar 1.5s ease-in-out infinite',
+				'fadeIn': 'fadeIn 0.45s cubic-bezier(0.22,1,0.36,1) both',
+				'fadeInScale': 'fadeInScale 0.4s cubic-bezier(0.22,1,0.36,1) both',
+				'shimmer': 'shimmer 1.8s linear infinite'
 			}
 		}
 	},

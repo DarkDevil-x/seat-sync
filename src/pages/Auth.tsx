@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,9 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Link } from "react-router-dom";
 import { useAuth } from "@/providers/AuthProvider";
-import { Eye, EyeOff, Github } from "lucide-react";
+import { Eye, EyeOff, Github, Zap } from "lucide-react";
 
 function getPasswordStrength(pw: string): { label: string; color: string; width: string } {
   if (pw.length === 0) return { label: "", color: "bg-muted", width: "0%" };
@@ -196,10 +195,26 @@ export default function Auth() {
   const togglePassword = () => setShowPassword((v) => !v);
 
   return (
-    <div className="container mx-auto flex items-center justify-center min-h-[80vh] px-4">
-      <Card className="w-full max-w-md shadow-xl">
+    <div className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-16 bg-background overflow-hidden">
+      {/* Background */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-40 dark:opacity-50 pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-primary/8 blur-[100px] pointer-events-none" />
+
+      <div className="relative z-10 w-full max-w-md animate-fadeInScale">
+        {/* Brand header */}
+        <div className="flex flex-col items-center gap-3 mb-8">
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/30 transition-transform duration-200 group-hover:scale-110">
+              <Zap className="h-5 w-5" />
+            </div>
+            <span className="text-2xl font-extrabold tracking-tight gradient-text">SeatSync</span>
+          </Link>
+          <p className="text-sm text-muted-foreground">Book events you'll love</p>
+        </div>
+
+      <Card className="w-full shadow-2xl border border-border/60 bg-background/95 backdrop-blur-xl">
         <Tabs defaultValue="signin" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid grid-cols-2 mx-4 mt-4 w-[calc(100%-2rem)]">
             <TabsTrigger value="signin">Sign In</TabsTrigger>
             <TabsTrigger value="signup">Sign Up</TabsTrigger>
           </TabsList>
@@ -331,6 +346,7 @@ export default function Auth() {
           </TabsContent>
         </Tabs>
       </Card>
+      </div>
     </div>
   );
 }
