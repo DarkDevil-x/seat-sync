@@ -20,6 +20,8 @@ const MyTickets     = lazy(() => import("./pages/MyTickets"));
 const AdminSetup    = lazy(() => import("./pages/AdminSetup"));
 const TicketGenerator  = lazy(() => import("./pages/TicketGenerator"));
 const AdminBookings    = lazy(() => import("./pages/AdminBookings"));
+const ValidateTicket   = lazy(() => import("./pages/ValidateTicket"));
+const Scanner          = lazy(() => import("./pages/Scanner"));
 
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
@@ -47,6 +49,31 @@ const queryClient = new QueryClient({
   },
 });
 
+const AppWithLayout = () => (
+  <div className="flex flex-col min-h-screen">
+    <Header />
+    <main className="flex-1 pt-20">
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/events" element={<Events />} />
+          <Route path="/events/:id" element={<EventDetail />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/bookings" element={<AdminBookings />} />
+          <Route path="/admin-setup" element={<AdminSetup />} />
+          <Route path="/tickets" element={<MyTickets />} />
+          <Route path="/generate-ticket/:id" element={<TicketGenerator />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
+    </main>
+    <Analytics />
+    <SpeedInsights />
+  </div>
+);
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
@@ -55,28 +82,19 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-1 pt-20">
-                <Suspense fallback={<PageFallback />}>
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/events" element={<Events />} />
-                    <Route path="/events/:id" element={<EventDetail />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route path="/admin" element={<Admin />} />
-                    <Route path="/admin/bookings" element={<AdminBookings />} />
-                    <Route path="/admin-setup" element={<AdminSetup />} />
-                    <Route path="/tickets" element={<MyTickets />} />
-                    <Route path="/generate-ticket/:id" element={<TicketGenerator />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
+            <Routes>
+              <Route path="/validate/:bookingId" element={
+                <Suspense fallback={null}>
+                  <ValidateTicket />
                 </Suspense>
-              </main>
-              <Analytics />
-              <SpeedInsights />
-            </div>
+              } />
+              <Route path="/scan" element={
+                <Suspense fallback={null}>
+                  <Scanner />
+                </Suspense>
+              } />
+              <Route path="*" element={<AppWithLayout />} />
+            </Routes>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>

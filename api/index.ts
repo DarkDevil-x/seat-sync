@@ -36,6 +36,7 @@ import route_30 from '../server/api/seats/hold.js';
 import route_31 from '../server/api/seats/release.js';
 import route_32 from '../server/api/seats/reset.js';
 import route_33 from '../server/api/seats.js';
+import route_validate from '../server/api/validate/[bookingId].js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
@@ -86,6 +87,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (pathname === '/api/seats/release') return route_31(req, res);
     if (pathname === '/api/seats/reset') return route_32(req, res);
     if (pathname === '/api/seats') return route_33(req, res);
+
+    const match_validate = pathname.match(/^\/api\/validate\/([^\/]+)$/);
+    if (match_validate) {
+      req.query.bookingId = match_validate[1];
+      return route_validate(req, res);
+    }
 
     return res.status(404).json({ error: 'Route not found: ' + pathname });
   } catch (err: unknown) {

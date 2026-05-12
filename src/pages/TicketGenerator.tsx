@@ -117,18 +117,15 @@ const TicketGenerator = () => {
       .filter(Boolean)
       .map((s: any) => `${s.row ?? ""}${s.number ?? ""}`);
 
-    const payload = JSON.stringify({
-      app: "SeatSync",
-      event: eventTitle,
-      student: studentName,
-      id: studentId,
-      course,
-      seats,
-      date: eventDate,
-      org: universityName,
-    });
+    const BASE_URL =
+      typeof window !== "undefined" &&
+      window.location.hostname !== "localhost"
+        ? "https://seat-sync-five.vercel.app"
+        : "http://localhost:8080";
 
-    QRCode.toDataURL(payload, { width: 400, margin: 2, color: { dark: "#000000", light: "#ffffff" } })
+    const validateUrl = `${BASE_URL}/validate/${bookingId}`;
+
+    QRCode.toDataURL(validateUrl, { width: 400, margin: 2, color: { dark: "#000000", light: "#ffffff" } })
       .then(setQrDataUrl)
       .catch((err) => console.error("[TicketGenerator] QR gen error:", err));
   }, [isGeneratingTicket, universityName, studentId, course, eventTitle, studentName, eventDate, booking]);
