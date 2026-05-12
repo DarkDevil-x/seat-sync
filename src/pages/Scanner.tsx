@@ -1,63 +1,107 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Html5QrcodeScanner } from "html5-qrcode";
+import { Html5Qrcode } from "html5-qrcode";
 
 export default function Scanner() {
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [scanning, setScanning] = useState(true);
   const [scanSuccess, setScanSuccess] = useState(false);
+  const [cameras, setCameras] = useState<{ id: string; label: string }[]>([]);
+  const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
 
-  useEffect(() => {
+  const startScanner = async (cameraId?: string) => {
     const scannerId = "qr-scanner";
     
-    const onScanSuccess = (decodedText: string) => {
-      console.log("Scanned QR:", decodedText);
-      setScanSuccess(true);
-      
-      const isValidSeatSyncQR = 
-        decodedText.startsWith("https://seat-sync-five.vercel.app/validate/") ||
-        decodedText.startsWith("http://localhost:8080/validate/");
-      
-      if (isValidSeatSyncQR) {
-        if (scannerRef.current) {
-          scannerRef.current.clear();
-        }
-        window.location.href = decodedText;
-      } else {
-        setError("Invalid SeatSync QR - scan a ticket QR code");
-        setTimeout(() => setError(""), 2000);
-        setScanSuccess(false);
-      }
-    };
-
-    const onScanError = (errorMessage: string) => {
-      // Ignore scan errors during normal operation
-      console.debug("Scan attempt:", errorMessage);
-    };
-
     try {
-      const scanner = new Html5QrcodeScanner(
-        scannerId,
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        /* verbose= */ false
+      // Stop existing scanner
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.stop();
+        } catch {}
+      }
+      
+      const html5QrCode = new Html5Qrcode(scannerId);
+      scannerRef.current = html5QrCode;
+
+      // Get cameras if not already available
+      let cameraIdToUse = cameraId;
+      if (!cameraIdToUse) {
+        const devices = await Html5Qrcode.getCameras();
+        if (devices && devices.length > 0) {
+          setCameras(devices.map(d => ({ id: d.id, label: d.label })));
+          // Find back camera (usually has "back" or "rear" in label, or is the second camera)
+          const backCamera = devices.find(d => 
+            d.label.toLowerCase().includes("back") || 
+            d.label.toLowerCase().includes("rear") ||
+            d.label.toLowerCase().includes("environment")
+          );
+          cameraIdToUse = backCamera?.id || devices[0].id;
+          // Set index to back camera
+          const idx = devices.findIndex(d => d.id === cameraIdToUse);
+          setCurrentCameraIndex(idx >= 0 ? idx : 0);
+        }
+      }
+
+      if (!cameraIdToUse) {
+        setError("No camera found");
+        return;
+      }
+
+      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+      
+      await html5QrCode.start(
+        cameraIdToUse,
+        config,
+        (decodedText) => {
+          console.log("Scanned QR:", decodedText);
+          setScanSuccess(true);
+          
+          const isValidSeatSyncQR = 
+            decodedText.startsWith("https://seat-sync-five.vercel.app/validate/") ||
+            decodedText.startsWith("http://localhost:8080/validate/");
+          
+          if (isValidSeatSyncQR) {
+            html5QrCode.stop().then(() => {
+              window.location.href = decodedText;
+            });
+          } else {
+            setError("Invalid SeatSync QR - scan a ticket QR code");
+            setTimeout(() => setError(""), 2000);
+            setScanSuccess(false);
+          }
+        },
+        (errorMessage) => {
+          console.debug("Scan attempt:", errorMessage);
+        }
       );
-      scannerRef.current = scanner;
-      scanner.render(onScanSuccess, onScanError);
+      setScanning(true);
     } catch (err: any) {
       console.error("Scanner error:", err);
       setError(err.message || "Camera access denied");
       setScanning(false);
     }
+  };
+
+  useEffect(() => {
+    startScanner();
 
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.clear().catch(() => {});
+        scannerRef.current.stop().catch(() => {});
       }
     };
   }, []);
+
+  const switchCamera = () => {
+    if (cameras.length > 1) {
+      const nextIndex = (currentCameraIndex + 1) % cameras.length;
+      setCurrentCameraIndex(nextIndex);
+      startScanner(cameras[nextIndex].id);
+    }
+  };
 
   const handleManualEntry = () => {
     const bookingId = prompt("Enter booking ID:");
@@ -126,6 +170,27 @@ export default function Scanner() {
           <p style={{ color: "#EF4444", fontSize: "14px", marginBottom: "16px" }}>
             {error}
           </p>
+        )}
+
+        {/* Switch camera button */}
+        {cameras.length > 1 && (
+          <button
+            onClick={switchCamera}
+            style={{
+              backgroundColor: "transparent",
+              color: "#E85D4E",
+              border: "1px solid #E85D4E",
+              borderRadius: "8px",
+              padding: "10px 16px",
+              fontSize: "14px",
+              fontWeight: "600",
+              cursor: "pointer",
+              marginBottom: "12px",
+              width: "100%",
+            }}
+          >
+            🔄 Switch Camera ({currentCameraIndex === 0 ? "Front" : "Back"} → {currentCameraIndex === 0 ? "Back" : "Front"})
+          </button>
         )}
 
         <button
