@@ -50,7 +50,7 @@ export default function Scanner() {
         return;
       }
 
-      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+      const config = { fps: 20, qrbox: { width: 300, height: 300 } };
       
       await html5QrCode.start(
         cameraIdToUse,
