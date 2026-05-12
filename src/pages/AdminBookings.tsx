@@ -288,7 +288,7 @@ export default function AdminBookings() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg md:text-xl font-bold">Booking Management</h1>
+          <h1 className="font-display text-lg md:text-xl font-bold">Booking Management</h1>
           <p className="text-xs text-muted-foreground truncate">
             {filterEventId ? `Filtered by event — ${pagination.total} booking(s)` : `${pagination.total} total bookings`}
           </p>

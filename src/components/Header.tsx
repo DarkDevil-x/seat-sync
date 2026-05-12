@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/providers/AuthProvider";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { Tickets, Menu, X, Zap, User, LogOut, LayoutDashboard, BookOpen } from "lucide-react";
+import { Tickets, Menu, X, User, LogOut, LayoutDashboard, BookOpen } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { motion, AnimatePresence } from "framer-motion";
 
 const NAV_LINKS = [
   { to: "/events", label: "Events" },
@@ -33,6 +34,12 @@ export default function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    document.body.style.overflow = isMenuOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [isMenuOpen]);
+
   // Close mobile menu on route change
   useEffect(() => { setIsMenuOpen(false); }, [location.pathname]);
 
@@ -52,64 +59,41 @@ export default function Header() {
         }`}
       >
         <div
-          className={`w-full max-w-7xl mx-4 transition-all duration-300 rounded-full ${
+          className={`w-full max-w-7xl mx-4 transition-all duration-300 rounded-full px-6 ${
             scrolled
-              ? "glass-header shadow-md shadow-black/5 px-6 border border-border/60"
-              : "glass-header bg-background/50 border border-border/60 px-6"
+              ? "bg-background/85 backdrop-blur-xl shadow-sm border border-border/50"
+              : "bg-background/50 backdrop-blur-sm border border-border/40"
           }`}
         >
           <div className="flex justify-between items-center h-14">
 
             {/* ── Logo ──────────────────────────────────────────── */}
-            <Link
-              to="/"
-              className="flex items-center gap-2.5 font-extrabold text-xl tracking-tight group"
-            >
-              <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md shadow-primary/30 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6 group-active:scale-95">
-                <Zap className="h-4 w-4" />
-              </div>
-              <span className="gradient-text">SeatSync</span>
+            <Link to="/" className="flex items-center gap-0.5 group">
+              <span className="font-display font-bold text-xl tracking-tight text-foreground transition-colors group-hover:text-primary">SeatSync</span>
+              <span className="text-primary font-bold text-2xl leading-none">.</span>
             </Link>
 
             {/* ── Desktop Nav ───────────────────────────────────── */}
             <nav className="hidden md:flex items-center gap-1">
-              {NAV_LINKS.map(({ to, label }) => (
+              {[
+                ...NAV_LINKS,
+                ...(user ? [{ to: "/tickets", label: "My Tickets" }] : []),
+                ...(isAdmin ? [{ to: "/admin", label: "Admin" }] : []),
+              ].map(({ to, label }) => (
                 <Link
                   key={to}
                   to={to}
-                  className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive(to)
-                      ? "text-primary bg-primary/10 border border-primary/20"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                  }`}
+                  className={`relative px-4 py-2 text-sm font-medium transition-colors duration-200
+                    after:content-[''] after:absolute after:bottom-1.5 after:left-1/2 after:h-0.5 after:bg-primary after:transition-all after:duration-200
+                    ${
+                      isActive(to)
+                        ? "text-primary after:w-4/5 after:-translate-x-1/2"
+                        : "text-muted-foreground hover:text-foreground after:w-0 hover:after:w-4/5 hover:after:-translate-x-1/2"
+                    }`}
                 >
                   {label}
                 </Link>
               ))}
-              {user && (
-                <Link
-                  to="/tickets"
-                  className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive("/tickets")
-                      ? "text-primary bg-primary/10 border border-primary/20"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                  }`}
-                >
-                  My Tickets
-                </Link>
-              )}
-              {isAdmin && (
-                <Link
-                  to="/admin"
-                  className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive("/admin")
-                      ? "text-primary bg-primary/10 border border-primary/20"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                  }`}
-                >
-                  Admin
-                </Link>
-              )}
             </nav>
 
             {/* ── Desktop Controls ──────────────────────────────── */}
@@ -169,7 +153,7 @@ export default function Header() {
               ) : (
                 <button
                   onClick={() => navigate("/auth")}
-                  className="gradient-primary rounded-xl px-5 py-2 text-sm font-semibold text-white shadow-md shadow-primary/25 hover:opacity-90 active:scale-95 transition-all duration-200"
+                  className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold shadow-sm hover:bg-primary/90 active:scale-95 transition-all duration-200"
                 >
                   Sign In
                 </button>
@@ -195,82 +179,83 @@ export default function Header() {
         </div>
       </header>
 
-      {/* ── Mobile Drawer ─────────────────────────────────────────── */}
-      {/* Backdrop */}
-      <div
-        className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden transition-opacity duration-200 ${
-          isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        }`}
-        onClick={() => setIsMenuOpen(false)}
-      />
-      {/* Dropdown Card */}
-      <div
-        className={`fixed top-[76px] right-4 left-4 sm:left-auto sm:w-80 z-50 md:hidden bg-background/95 backdrop-blur-xl border border-border/60 shadow-2xl rounded-2xl flex flex-col overflow-hidden transition-all duration-200 ${
-          isMenuOpen
-            ? "opacity-100 translate-y-0 pointer-events-auto"
-            : "opacity-0 -translate-y-3 pointer-events-none"
-        }`}
-      >
-        {user && (
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-border/60 bg-muted/20">
-            <Avatar className="h-10 w-10 border border-border shadow-sm">
-              <AvatarImage src={profile?.avatar_url || ""} />
-              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                {user.email?.charAt(0).toUpperCase() || "U"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col min-w-0">
-              <p className="text-sm font-semibold leading-none truncate">{[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "User"}</p>
-              <p className="text-xs text-muted-foreground mt-1 truncate">{user.email}</p>
+      {/* ── Mobile Full-Screen Overlay ─────────────────────────────── */}
+      <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div
+            key="mobile-menu"
+            initial={{ opacity: 0, x: "-100%" }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: "-100%" }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-0 z-40 md:hidden bg-background flex flex-col pt-20 pb-8 px-6"
+          >
+            {user && (
+              <div className="flex items-center gap-3 mb-8 pb-6 border-b border-border">
+                <Avatar className="h-12 w-12 border-2 border-primary/30">
+                  <AvatarImage src={profile?.avatar_url || ""} />
+                  <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                    {user.email?.charAt(0).toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-semibold">{[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "User"}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5 truncate">{user.email}</p>
+                </div>
+              </div>
+            )}
+
+            <nav className="flex flex-col gap-2 flex-1">
+              {[
+                { to: "/events", label: "Events", icon: LayoutDashboard },
+                ...(user ? [{ to: "/tickets", label: "My Tickets", icon: Tickets }] : []),
+                ...(user ? [{ to: "/profile", label: "Profile", icon: User }] : []),
+                ...(isAdmin ? [{ to: "/admin", label: "Admin Dashboard", icon: LayoutDashboard }] : []),
+                ...(isAdmin ? [{ to: "/admin/bookings", label: "Manage Bookings", icon: BookOpen }] : []),
+              ].map(({ to, label, icon: Icon }, i) => (
+                <motion.div
+                  key={to}
+                  initial={{ opacity: 0, x: -24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.06, duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <Link
+                    to={to}
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-base font-medium transition-colors duration-150 ${
+                      isActive(to)
+                        ? "bg-primary/10 text-primary border border-primary/20"
+                        : "text-foreground hover:bg-muted/70"
+                    }`}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    {label}
+                  </Link>
+                </motion.div>
+              ))}
+            </nav>
+
+            <div className="mt-auto pt-6 border-t border-border">
+              {user ? (
+                <button
+                  onClick={handleSignOut}
+                  className="flex w-full items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-base font-medium text-destructive hover:bg-destructive/20 transition-colors"
+                >
+                  <LogOut className="h-5 w-5" />
+                  Sign Out
+                </button>
+              ) : (
+                <button
+                  onClick={() => { navigate("/auth"); setIsMenuOpen(false); }}
+                  className="flex w-full items-center justify-center gap-2 bg-primary text-primary-foreground rounded-full px-4 py-3 text-base font-semibold hover:bg-primary/90 transition-colors"
+                >
+                  Sign In
+                </button>
+              )}
             </div>
-          </div>
+          </motion.div>
         )}
-
-        {/* Nav links */}
-        <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
-          {[
-            { to: "/events", label: "Events", icon: Zap },
-            ...(user ? [{ to: "/tickets", label: "My Tickets", icon: Tickets }] : []),
-            ...(user ? [{ to: "/profile", label: "Profile", icon: User }] : []),
-            ...(isAdmin ? [{ to: "/admin", label: "Admin Dashboard", icon: LayoutDashboard }] : []),
-            ...(isAdmin ? [{ to: "/admin/bookings", label: "Manage Bookings", icon: BookOpen }] : []),
-          ].map(({ to, label, icon: Icon }) => (
-            <Link
-              key={to}
-              to={to}
-              onClick={() => setIsMenuOpen(false)}
-              className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-150 ${
-                isActive(to)
-                  ? "bg-primary/10 text-primary border border-primary/20"
-                  : "text-foreground hover:bg-muted/70"
-              }`}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {label}
-            </Link>
-          ))}
-        </nav>
-
-        {/* Footer */}
-        <div className="px-3 py-4 border-t border-border/60">
-          {user ? (
-            <button
-              onClick={handleSignOut}
-              className="flex w-full items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/20 transition-all duration-150"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </button>
-          ) : (
-            <button
-              onClick={() => { navigate("/auth"); setIsMenuOpen(false); }}
-              className="flex w-full items-center justify-center gap-2 gradient-primary rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/25 hover:opacity-90 transition-all duration-200"
-            >
-              Sign In
-            </button>
-          )}
-        </div>
-      </div>
+      </AnimatePresence>
     </>
   );
 }

@@ -45,7 +45,7 @@ export const EventCard = memo(function EventCard({
 
   return (
     <div className="h-full animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both" style={{ animationDelay: `${(index % 4) * 100}ms` }}>
-      <div className="group relative flex flex-col h-full min-h-[420px] rounded-2xl overflow-hidden border border-border bg-card transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_20px_48px_-12px_rgba(124,58,237,0.28)] hover:border-primary/30"
+      <div className="group relative flex flex-col h-full min-h-[420px] rounded-2xl overflow-hidden border border-border bg-card transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_20px_48px_-12px_rgba(232,93,78,0.28)] hover:border-primary/30"
         style={{ boxShadow: "var(--card-shadow)" }}
       >
         {/* ── Image ──────────────────────────────────────────────────── */}
@@ -66,7 +66,7 @@ export const EventCard = memo(function EventCard({
             ) : null}
             {/* Fallback placeholder */}
             <div
-              className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/20 to-blue-500/20 ${imageUrl ? "hidden" : ""}`}
+              className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5 ${imageUrl ? "hidden" : ""}`}
             >
               <div className="text-4xl opacity-30">🎟️</div>
             </div>

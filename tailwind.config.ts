@@ -18,11 +18,24 @@ export default {
 			}
 		},
 		fontFamily: {
-			sans: ['Geist', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-			mono: ['Geist Mono', 'ui-monospace', 'monospace'],
+			display: ['Space Grotesk', 'sans-serif'],
+			sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+			mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
 		},
 		extend: {
 			colors: {
+				/* ── Semantic design tokens ── */
+				coral: {
+					DEFAULT: 'var(--accent-primary)',
+					hover: 'var(--accent-hover)',
+					muted: 'var(--accent-muted)',
+					bg: 'var(--accent-bg)',
+				},
+				surface: {
+					base: 'var(--bg-primary)',
+					secondary: 'var(--bg-secondary)',
+					elevated: 'var(--bg-elevated)',
+				},
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',

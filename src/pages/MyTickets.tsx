@@ -191,7 +191,7 @@ export default function MyTickets() {
             ))}
           </div>
         ) : bookings.length === 0 ? (
-          <Card className="glass">
+          <Card>
             <CardContent className="text-center py-16">
               <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
                 <Tickets className="h-8 w-8 text-muted-foreground" />

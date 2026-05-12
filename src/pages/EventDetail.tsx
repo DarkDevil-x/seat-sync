@@ -259,7 +259,7 @@ export default function EventDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">{event.title}</h1>
+            <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">{event.title}</h1>
             <div className="flex flex-wrap items-center gap-2 text-muted-foreground mb-4">
               <span>{formatDate(event.date)}</span>
               <span>•</span>
@@ -276,10 +276,10 @@ export default function EventDetail() {
                 alt={event.title}
                 loading="lazy"
                 decoding="async"
-                className="w-full h-64 object-cover rounded-lg mb-6"
+                className="w-full h-64 md:h-80 object-cover rounded-2xl mb-6"
               />
             ) : (
-              <div className="w-full h-64 bg-muted rounded-lg flex items-center justify-center mb-6">
+              <div className="w-full h-64 md:h-80 bg-muted rounded-2xl flex items-center justify-center mb-6 border border-border/50">
                 <span className="text-muted-foreground">No image available</span>
               </div>
             )}
@@ -323,7 +323,7 @@ export default function EventDetail() {
         </div>
         
         <div className="lg:col-span-1">
-          <Card className="sticky top-8 glass shadow-2xl">
+          <Card className="sticky top-24 border-border/50 shadow-xl">
             <CardContent className="p-6">
               <h3 className="text-xl font-bold mb-4">Booking Summary</h3>
               <div className="flex justify-between mb-2">

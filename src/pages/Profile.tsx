@@ -252,14 +252,14 @@ export default function Profile() {
         {/* ── Avatar header ─────────────────────────────────── */}
         <div className="flex flex-col items-center mb-8">
           <div className="relative mb-4">
-            <div className="h-20 w-20 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center ring-4 ring-background shadow-lg shadow-purple-500/20">
+            <div className="h-20 w-20 rounded-full bg-primary flex items-center justify-center ring-4 ring-background shadow-lg shadow-primary/20">
               <span className="text-2xl font-bold text-white">{initials}</span>
             </div>
             {profile?.is_admin && (
               <span className="absolute -bottom-1 -right-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">ADMIN</span>
             )}
           </div>
-          <h1 className="text-2xl font-bold">{firstName} {lastName}</h1>
+          <h1 className="font-display text-2xl font-bold">{firstName} {lastName}</h1>
           <p className="text-sm text-muted-foreground">{email}</p>
         </div>
 

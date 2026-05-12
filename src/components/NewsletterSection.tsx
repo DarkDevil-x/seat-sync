@@ -25,10 +25,13 @@ export function NewsletterSection() {
   };
 
   return (
-    <section className="py-20 md:py-28 bg-slate-50/80 dark:bg-muted/30 relative overflow-hidden border-t border-border/50">
+    <section className="py-20 md:py-28 bg-muted/30 relative overflow-hidden border-t border-border/50">
       <div className="container max-w-4xl mx-auto px-4 relative z-10">
-        <div className="bg-white/70 dark:bg-card/50 border border-slate-200 dark:border-white/10 rounded-3xl p-8 md:p-14 text-center backdrop-blur-sm shadow-xl shadow-slate-200/50 dark:shadow-none">
-          <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground mb-4">Stay in the Loop</h2>
+        <div className="bg-card border border-border/50 rounded-2xl p-8 md:p-14 text-center shadow-sm">
+          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-xs font-semibold text-primary mb-6">
+            Stay updated
+          </div>
+          <h2 className="font-display text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">Stay in the Loop</h2>
           <p className="text-muted-foreground text-lg mb-8 max-w-xl mx-auto">
             Subscribe to our newsletter to get early access to exclusive events, pre-sales, and platform updates.
           </p>
@@ -40,14 +43,14 @@ export function NewsletterSection() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="flex-1 h-12 rounded-xl border-slate-300 dark:border-white/20 bg-white/50 dark:bg-background/50 px-4 focus-visible:ring-primary/50"
+              className="flex-1 h-12 px-4"
             />
-            <Button type="submit" disabled={isSubmitting} className="h-12 rounded-xl px-8 font-semibold shadow-lg shadow-primary/20">
+            <Button type="submit" disabled={isSubmitting} className="h-12 rounded-full px-8 font-semibold shadow-md shadow-primary/20">
               {isSubmitting ? "Subscribing..." : "Subscribe"}
             </Button>
           </form>
           
-          <p className="text-xs text-muted-foreground mt-6 font-medium">
+          <p className="text-xs text-muted-foreground mt-6">
             By subscribing, you agree to our Privacy Policy and consent to receive updates.
           </p>
         </div>

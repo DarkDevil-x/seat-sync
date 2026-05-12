@@ -31,14 +31,14 @@ export function HeroSection() {
     <section className="relative min-h-[92vh] flex items-center overflow-hidden bg-background">
       {/* ── Ambient background ────────────────────────────────── */}
       <div className="absolute inset-0 bg-grid-pattern opacity-40 dark:opacity-60 pointer-events-none" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full bg-primary/10 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-[500px] h-[400px] bg-blue-500/8 blur-[100px] pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-[800px] h-[500px] rounded-full bg-primary/8 blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-[500px] h-[400px] bg-primary/5 blur-[100px] pointer-events-none" />
 
       <div className="container max-w-7xl mx-auto px-4 py-24 md:py-32 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-16 items-center">
 
-          {/* ── Left: Copy ──────────────────────────────────────── */}
-          <div className="flex flex-col gap-7">
+          {/* ── Left: Copy (60%) ─────────────────────────────────── */}
+          <div className="flex flex-col gap-7 lg:col-span-3">
             {/* Eyebrow badge */}
             <div
               className="inline-flex items-center gap-2 self-start rounded-full border border-primary/25 bg-primary/8 px-4 py-1.5 text-xs font-semibold text-primary animate-fadeIn"
@@ -50,11 +50,11 @@ export function HeroSection() {
 
             {/* Headline */}
             <h1
-              className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.08] animate-fadeIn"
+              className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.08] animate-fadeIn"
               style={{ animationDelay: "60ms" }}
             >
               Book events{" "}
-              <span className="gradient-text">you'll love,</span>
+              <span className="text-primary">you'll love,</span>
               <br />
               seats you'll remember.
             </h1>
@@ -74,7 +74,7 @@ export function HeroSection() {
             >
               <Link
                 to="/events"
-                className="inline-flex items-center justify-center gap-2 gradient-primary rounded-xl px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/30 hover:opacity-90 hover:shadow-xl hover:shadow-primary/40 active:scale-95 transition-all duration-200"
+                className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-full px-6 py-3 text-sm font-semibold shadow-md shadow-primary/25 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/30 active:scale-95 transition-all duration-200"
               >
                 Browse Events
                 <ArrowRight className="h-4 w-4" />
@@ -112,7 +112,7 @@ export function HeroSection() {
                 {["7", "12", "25", "44"].map((seed) => (
                   <div
                     key={seed}
-                    className="h-8 w-8 rounded-full border-2 border-background bg-gradient-to-br from-primary/30 to-violet-400/30 flex items-center justify-center text-[10px] font-bold text-primary"
+                    className="h-8 w-8 rounded-full border-2 border-background bg-gradient-to-br from-primary/40 to-primary/10 flex items-center justify-center text-[10px] font-bold text-primary"
                   >
                     {seed[0]}
                   </div>
@@ -122,10 +122,27 @@ export function HeroSection() {
                 <span className="font-semibold text-foreground">1,200+</span> tickets booked this month
               </p>
             </div>
+
+            {/* Stats row */}
+            <div
+              className="grid grid-cols-3 gap-4 pt-4 border-t border-border/50 animate-fadeIn"
+              style={{ animationDelay: "320ms" }}
+            >
+              {[
+                { value: "500+", label: "Events" },
+                { value: "50K+", label: "Tickets Sold" },
+                { value: "98%", label: "Satisfaction" },
+              ].map(({ value, label }) => (
+                <div key={label}>
+                  <p className="font-display font-bold text-xl text-foreground">{value}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* ── Right: Visual ────────────────────────────────────── */}
-          <div className="relative hidden lg:flex flex-col gap-4 items-end animate-fadeInScale" style={{ animationDelay: "100ms" }}>
+          {/* ── Right: Visual (40%) ──────────────────────────────── */}
+          <div className="relative hidden lg:flex flex-col gap-4 items-end animate-fadeInScale lg:col-span-2" style={{ animationDelay: "100ms" }}>
             {/* Main image */}
             <div className="relative w-full rounded-2xl overflow-hidden border border-border shadow-2xl">
               <img

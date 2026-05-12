@@ -128,7 +128,7 @@ const TicketGenerator = () => {
       org: universityName,
     });
 
-    QRCode.toDataURL(payload, { width: 400, margin: 2, color: { dark: "#ffffff", light: "#00000000" } })
+    QRCode.toDataURL(payload, { width: 400, margin: 2, color: { dark: "#000000", light: "#ffffff" } })
       .then(setQrDataUrl)
       .catch((err) => console.error("[TicketGenerator] QR gen error:", err));
   }, [isGeneratingTicket, universityName, studentId, course, eventTitle, studentName, eventDate, booking]);
@@ -192,7 +192,7 @@ const TicketGenerator = () => {
       stub.style.maxWidth = "130px";
       stub.style.flexShrink = "0";
       stub.style.flexDirection = "column";
-      stub.style.background = "#1e1b4b";
+      stub.style.background = "#1A1D23";
       stub.style.borderLeft = "2px dashed rgba(255,255,255,0.3)";
       stub.style.borderTop = "none";
       stub.style.borderRadius = "";
@@ -390,7 +390,7 @@ const TicketGenerator = () => {
                 {/* Main section */}
                 <div style={{
                   flex: 1,
-                  background: "linear-gradient(135deg, #4C1D95 0%, #6D28D9 45%, #4338CA 100%)",
+                  background: "linear-gradient(135deg, #D14D40 0%, #F4A9A0 100%)",
                   padding: "24px 22px 20px",
                   color: "white",
                   minWidth: 0,
@@ -419,7 +419,7 @@ const TicketGenerator = () => {
                       { label: "COURSE",     value: course || "—" },
                     ].map(({ label, value }) => (
                       <div key={label}>
-                        <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.55, display: "block", marginBottom: 3 }}>
+                        <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.85)", display: "block", marginBottom: 3 }}>
                           {label}
                         </span>
                         <span style={{ fontSize: 13, fontWeight: 500 }}>{value}</span>
@@ -429,12 +429,12 @@ const TicketGenerator = () => {
 
                   {/* Seats */}
                   <div style={{ marginBottom: 14 }}>
-                    <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.55, display: "block", marginBottom: 5 }}>
-                      SEAT(S) · {allSeats.length}
+                    <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.85)", display: "block", marginBottom: 5 }}>
+                      SEAT(S) · <span style={{ color: "#FFFFFF" }}>{allSeats.length}</span>
                     </span>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                       {allSeats.length > 0 ? allSeats.map((seat: any, i: number) => (
-                        <span key={i} style={{ fontSize: 11, fontWeight: 700, fontFamily: "monospace", display: "inline-flex", alignItems: "center", justifyContent: "center", lineHeight: "1", letterSpacing: "0.04em", paddingRight: "6px" }}>
+                        <span key={i} style={{ fontSize: 11, fontWeight: 700, fontFamily: "monospace", display: "inline-flex", alignItems: "center", justifyContent: "center", lineHeight: "1", letterSpacing: "0.04em", paddingRight: "6px", color: "#FFFFFF" }}>
                           {seat.row}{seat.number}
                         </span>
                       )) : (
@@ -451,7 +451,7 @@ const TicketGenerator = () => {
                       { label: "PRICE", value: isFree ? "Free" : totalPrice > 0 ? `$${totalPrice.toFixed(2)}` : "—" },
                     ].map(({ label, value }) => (
                       <div key={label}>
-                        <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.55, display: "block", marginBottom: 3 }}>
+                        <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.85)", display: "block", marginBottom: 3 }}>
                           {label}
                         </span>
                         <span style={{ fontSize: 13, fontWeight: 500 }}>{value}</span>
@@ -463,13 +463,13 @@ const TicketGenerator = () => {
                 {/* Tear stub */}
                 <div className="ticket-stub">
                   <div style={{ textAlign: "center" }}>
-                    <span style={{ fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.45, display: "block", marginBottom: 2 }}>EVENT</span>
+                    <span style={{ fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", display: "block", marginBottom: 2 }}>EVENT</span>
                     <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.2, opacity: 0.9, display: "block" }}>
                       {(eventTitle || "Event").split(" ").slice(0, 3).join(" ")}
                     </span>
                   </div>
                   <div style={{ textAlign: "center" }}>
-                    <span style={{ fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.45, display: "block", marginBottom: 4 }}>SCAN</span>
+                    <span style={{ fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", display: "block", marginBottom: 4 }}>SCAN</span>
                     {qrDataUrl ? (
                       <img src={qrDataUrl} width={72} height={72} style={{ borderRadius: 6 }} alt="QR code" />
                     ) : (
@@ -479,18 +479,18 @@ const TicketGenerator = () => {
                     )}
                   </div>
                   <div style={{ textAlign: "center" }}>
-                    <span style={{ fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.45, display: "block", marginBottom: 2 }}>SEATS</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "monospace", letterSpacing: "0.05em" }}>
+                    <span style={{ fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", display: "block", marginBottom: 2 }}>SEATS</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "monospace", letterSpacing: "0.05em", color: "#FF7A6B" }}>
                       {formatSeatInfo()}
                     </span>
                   </div>
                   <div style={{ textAlign: "center" }}>
-                    <span style={{ fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.45, display: "block", marginBottom: 2 }}>DATE</span>
+                    <span style={{ fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", display: "block", marginBottom: 2 }}>DATE</span>
                     <span style={{ fontSize: 10, opacity: 0.7 }}>
                       {eventDate ? formatDate(eventDate) : "—"}
                     </span>
                   </div>
-                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.4 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#FF7A6B", opacity: 0.85 }}>
                     SEATSYNC
                   </span>
                 </div>

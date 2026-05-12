@@ -24,8 +24,11 @@ export function TestimonialsSection() {
     <section className="py-20 md:py-32 bg-background relative overflow-hidden">
       <div className="container max-w-7xl mx-auto px-4 relative z-10">
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground mb-4">
-            Loved by <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-blue-500">Thousands</span>
+          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-xs font-semibold text-primary mb-5">
+            Community love
+          </div>
+          <h2 className="font-display text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
+            Loved by <span className="text-primary">Thousands</span>
           </h2>
           <p className="text-muted-foreground text-lg">
             See what our community has to say about their experience with SeatSync.
@@ -51,7 +54,7 @@ export function TestimonialsSection() {
                 <p className="text-sm text-muted-foreground leading-relaxed">"{testimonial.quote}"</p>
               </blockquote>
               <footer className="flex items-center gap-3 mt-auto">
-                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-blue-500 flex items-center justify-center text-white text-xs font-bold shadow-md flex-shrink-0">
+                <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold shadow-sm flex-shrink-0">
                   {testimonial.author.charAt(0)}
                 </div>
                 <div>

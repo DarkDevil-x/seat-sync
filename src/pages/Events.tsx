@@ -109,7 +109,7 @@ const EventCard = memo(({ event, index, bookmarked, onToggleBookmark }: {
                 }}
               />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/20 via-violet-500/10 to-blue-500/20">
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
                 <span className="text-5xl opacity-20">🎟️</span>
               </div>
             )}
@@ -371,9 +371,9 @@ export default function Events() {
         <div className="mb-8 animate-fadeIn">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">
+              <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight text-foreground">
                 Upcoming{" "}
-                <span className="gradient-text">Events</span>
+                <span className="text-primary">Events</span>
               </h1>
               <p className="text-muted-foreground mt-1.5 text-sm md:text-base">
                 Browse and book tickets for the best experiences

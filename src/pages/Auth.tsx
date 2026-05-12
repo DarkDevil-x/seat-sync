@@ -8,7 +8,7 @@ import { toast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/providers/AuthProvider";
-import { Eye, EyeOff, Github, Zap } from "lucide-react";
+import { Eye, EyeOff, Github } from "lucide-react";
 
 function getPasswordStrength(pw: string): { label: string; color: string; width: string } {
   if (pw.length === 0) return { label: "", color: "bg-muted", width: "0%" };
@@ -203,11 +203,9 @@ export default function Auth() {
       <div className="relative z-10 w-full max-w-md animate-fadeInScale">
         {/* Brand header */}
         <div className="flex flex-col items-center gap-3 mb-8">
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/30 transition-transform duration-200 group-hover:scale-110">
-              <Zap className="h-5 w-5" />
-            </div>
-            <span className="text-2xl font-extrabold tracking-tight gradient-text">SeatSync</span>
+          <Link to="/" className="flex items-center gap-0.5 group">
+            <span className="font-display font-bold text-2xl tracking-tight text-foreground transition-colors group-hover:text-primary">SeatSync</span>
+            <span className="text-primary font-bold text-3xl leading-none">.</span>
           </Link>
           <p className="text-sm text-muted-foreground">Book events you'll love</p>
         </div>

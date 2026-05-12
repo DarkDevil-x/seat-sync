@@ -1108,7 +1108,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
+      <h1 className="font-display text-3xl font-bold mb-2">Admin Dashboard</h1>
       <p className="text-muted-foreground mb-6">Manage events, bookings and seats</p>
 
       <Tabs defaultValue="overview" className="w-full">
@@ -1671,7 +1671,7 @@ export default function AdminDashboard() {
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Admins</p>
-                <p className="text-2xl font-bold text-blue-600">{users.filter(u => u.is_admin).length}</p>
+                <p className="text-2xl font-bold text-primary">{users.filter(u => u.is_admin).length}</p>
               </CardContent>
             </Card>
             <Card>

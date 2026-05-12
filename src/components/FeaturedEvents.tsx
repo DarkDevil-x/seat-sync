@@ -12,10 +12,26 @@ export function FeaturedEvents() {
   useEffect(() => {
     const fetchFeatured = async () => {
       try {
-        const res = await fetch('/api/events?featured=true');
+        const res = await fetch('/api/events?featured=true&published=true');
         if (res.ok) {
           const data = await res.json();
-          setEvents(data);
+          const normalized: Event[] = data.map((e: any) => ({
+            id: String(e._id ?? e.id),
+            title: e.title ?? "",
+            description: e.description ?? "",
+            date: e.date,
+            time: e.time ?? "",
+            location: e.location ?? "",
+            price: e.is_free ? 0 : (e.price ?? 0),
+            imageUrl: e.image_url ?? "",
+            totalSeats: e.total_seats ?? 0,
+            availableSeats:
+              typeof e.total_seats === "number" && typeof e.sold_seats === "number"
+                ? e.total_seats - e.sold_seats
+                : 0,
+            category: e.category ?? "",
+          }));
+          setEvents(normalized);
         }
       } catch (err) {
         console.error("Failed to fetch featured events:", err);
@@ -33,9 +49,9 @@ export function FeaturedEvents() {
           <Sparkles className="h-3 w-3" />
           Handpicked for you
         </div>
-        <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
+        <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-foreground">
           Featured{" "}
-          <span className="gradient-text">Events</span>
+          <span className="text-primary">Events</span>
         </h2>
         <p className="text-muted-foreground mt-1.5 text-sm md:text-base">
           Discover the hottest upcoming events near you

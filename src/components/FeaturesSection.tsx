@@ -6,8 +6,8 @@ const STEPS = [
     title: "Browse Events",
     description: "Search by city, date, or category. Find concerts, sports, theatre, and more curated for you.",
     icon: Search,
-    accent: "bg-violet-500/10 text-violet-500 dark:bg-violet-500/15 dark:text-violet-400",
-    border: "border-violet-500/20",
+    accent: "bg-primary/10 text-primary dark:bg-primary/15",
+    border: "border-primary/20",
   },
   {
     number: "02",
@@ -46,9 +46,9 @@ export function FeaturesSection() {
           <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-xs font-semibold text-primary mb-5">
             How it works
           </div>
-          <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground mb-4">
+          <h2 className="font-display text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
             From browse to{" "}
-            <span className="gradient-text">front row</span>
+            <span className="text-primary">front row</span>
           </h2>
           <p className="text-muted-foreground text-lg leading-relaxed">
             Book any event in 4 simple steps — it takes less than a minute.

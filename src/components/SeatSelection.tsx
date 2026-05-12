@@ -375,7 +375,7 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
     let base = "w-7 h-7 sm:w-8 sm:h-8 rounded-[6px] flex items-center justify-center transition-all duration-200 text-[9px] sm:text-[10px] font-medium border flex-shrink-0 ";
     
     if (isBookedByUser) {
-      return base + "border-purple-500 bg-purple-500/20 text-purple-700 dark:text-purple-200 cursor-default shadow-[0_0_8px_rgba(168,85,247,0.3)]";
+      return base + "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 cursor-default shadow-[0_0_8px_rgba(16,185,129,0.25)]";     
     }
     if (isSelected) {
       return base + "border-primary bg-primary text-primary-foreground scale-110 shadow-[0_0_12px_var(--primary)]";
@@ -488,7 +488,7 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
     <div className="mb-12 w-full max-w-5xl mx-auto rounded-3xl p-6 md:p-10 bg-card border border-border shadow-2xl relative overflow-hidden">
       {/* Decorative Background Glows */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full filter blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-rose-500/10 rounded-full filter blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-primary/5 rounded-full filter blur-[100px] pointer-events-none" />
 
       {/* Screen Side Indicator */}
       <div className="flex flex-col items-center mb-16 relative z-10">
@@ -566,7 +566,7 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
         </div>
         {userBookedSeats.length > 0 && (
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-[4px] border border-purple-500 bg-purple-500/20"></div>
+            <div className="w-4 h-4 rounded-[4px] border border-emerald-500 bg-emerald-500/15"></div>
             <span className="text-xs text-muted-foreground">Your Bookings</span>
           </div>
         )}
