@@ -1,107 +1,55 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeScannerState } from "html5-qrcode";
 
 export default function Scanner() {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
-  const cleanedUpRef = useRef(false);
-  const hasScannedRef = useRef(false);
   const navigate = useNavigate();
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(true);
-
-  const cleanupScanner = async () => {
-    if (cleanedUpRef.current) return;
-    cleanedUpRef.current = true;
-
-    try {
-      if (scannerRef.current) {
-        const scanner = scannerRef.current;
-        scannerRef.current = null;
-        
-        try {
-          await scanner.stop();
-        } catch (e) {
-          // Scanner may already be stopped - ignore
-        }
-        
-        try {
-          await scanner.clear();
-        } catch (e) {
-          // Element may already be cleared - ignore
-        }
-      }
-    } catch (err) {
-      console.warn("Scanner cleanup skipped:", err);
-    }
-  };
-
-  const handleSuccessfulScan = async (url: string) => {
-    if (hasScannedRef.current) return;
-    hasScannedRef.current = true;
-    
-    // Clean up scanner before redirect
-    await cleanupScanner();
-    
-    // Small delay to allow camera stream to stop cleanly
-    setTimeout(() => {
-      window.location.href = url;
-    }, 100);
-  };
 
   useEffect(() => {
     const scannerId = "qr-scanner";
     
     const startScanner = async () => {
-      if (cleanedUpRef.current) return;
-      
       try {
         const html5QrCode = new Html5Qrcode(scannerId);
         scannerRef.current = html5QrCode;
 
-        const config = {
-          fps: 15,
-          qrbox: { width: 280, height: 280 },
-          aspectRatio: 1,
-          disableFlip: false,
-          videoConstraints: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          }
-        };
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
         
         await html5QrCode.start(
-          config.videoConstraints,
+          { facingMode: "environment" },
           config,
           (decodedText) => {
             console.log("Scanned QR:", decodedText);
             
-            // Dynamic URL validation - works with any domain
-            try {
-              const url = new URL(decodedText);
-              if (url.pathname.startsWith("/validate/")) {
-                handleSuccessfulScan(decodedText);
-              } else {
-                console.warn("Invalid SeatSync QR - not a validation URL");
-              }
-            } catch (err) {
-              console.error("Invalid QR code format");
+            // Check if it's a SeatSync validation URL
+            const isValidSeatSyncQR = 
+              decodedText.startsWith("https://seat-sync-five.vercel.app/validate/") ||
+              decodedText.startsWith("http://localhost:8080/validate/");
+            
+            if (isValidSeatSyncQR) {
+              // Stop scanning and redirect
+              html5QrCode.stop().then(() => {
+                setScanning(false);
+                window.location.href = decodedText;
+              });
+            } else {
+              setError("Invalid SeatSync QR - scan a ticket QR code");
+              setTimeout(() => setError(""), 2000);
             }
           },
           (errorMessage) => {
             // Ignore scan errors during normal operation
+            // Only log if it's a critical error
             console.debug("Scan error:", errorMessage);
           }
         );
         
-        setLoading(false);
-        
       } catch (err) {
         setError("Camera access denied. Please allow camera permissions.");
-        setLoading(false);
         setScanning(false);
         console.error("Scanner error:", err);
       }
@@ -110,7 +58,11 @@ export default function Scanner() {
     startScanner();
 
     return () => {
-      cleanupScanner();
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch((err) => {
+          console.error("Error stopping scanner:", err);
+        });
+      }
     };
   }, []);
 
@@ -173,17 +125,8 @@ export default function Scanner() {
             borderRadius: "12px",
             overflow: "hidden",
             backgroundColor: "#27272A",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
           }}
-        >
-          {loading && (
-            <div style={{ color: "#A1A1AA", fontSize: "14px" }}>
-              Initializing camera...
-            </div>
-          )}
-        </div>
+        />
 
         {error && (
           <p style={{ color: "#EF4444", fontSize: "14px", marginBottom: "16px" }}>
