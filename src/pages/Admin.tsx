@@ -44,8 +44,10 @@ import {
   Edit, 
   Eye, 
   Lock, 
+  Loader2,
   MoreHorizontal, 
   Plus, 
+  Sparkles,
   Ticket, 
   Trash2, 
   TrendingUp, 
@@ -93,6 +95,16 @@ export default function AdminDashboard() {
   const [maxSeatsPerUser, setMaxSeatsPerUser] = useState(10);
   const [currentEventId, setCurrentEventId] = useState<string | null>(null);
   
+  // AI description generation
+  const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
+  const [descCooldown, setDescCooldown] = useState(0);
+
+  useEffect(() => {
+    if (descCooldown <= 0) return;
+    const timer = setTimeout(() => setDescCooldown(c => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [descCooldown]);
+
   // Seat management state
   const [showSeatDialog, setShowSeatDialog] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -354,6 +366,33 @@ export default function AdminDashboard() {
     }
   };
 
+  const generateAIDescription = async () => {
+    if (!eventTitle || !eventCategory) {
+      toast({ title: "Missing fields", description: "Enter event title and category first.", variant: "destructive" });
+      return;
+    }
+    setIsGeneratingDesc(true);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const res = await fetch("/api/admin/generate-description", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ title: eventTitle, category: eventCategory, imageUrl: eventImageUrl || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Generation failed");
+      setEventDescription(data.description);
+      setDescCooldown(15);
+      toast({ title: "Description generated!", description: "AI description has been filled in. Feel free to edit it." });
+    } catch (err: any) {
+      toast({ title: "Generation failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsGeneratingDesc(false);
+    }
+  };
+
   const openCreateEventDialog = () => {
     resetEventForm();
     setShowEventDialog(true);
@@ -397,6 +436,7 @@ export default function AdminDashboard() {
     setPublishEvent(false);
     setIsFreeEvent(false);
     setMaxSeatsPerUser(10);
+    setDescCooldown(0);
   };
 
   const handleEventSubmit = async (e: React.FormEvent) => {
@@ -1780,12 +1820,28 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <Label htmlFor="description">Description</Label>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label htmlFor="description">Description</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={generateAIDescription}
+                      disabled={isGeneratingDesc || descCooldown > 0 || !eventTitle || !eventCategory}
+                      className="h-7 text-xs gap-1"
+                    >
+                      {isGeneratingDesc
+                        ? <><Loader2 className="h-3 w-3 animate-spin" /> Generating…</>
+                        : descCooldown > 0
+                          ? <>Wait {descCooldown}s</>
+                          : <><Sparkles className="h-3 w-3" /> Generate AI Description</>}
+                    </Button>
+                  </div>
                   <Textarea
                     id="description"
                     value={eventDescription}
                     onChange={(e) => setEventDescription(e.target.value)}
-                    placeholder="Enter event description"
+                    placeholder="Enter event description or click Generate AI Description above"
                     className="min-h-32"
                     required
                   />
