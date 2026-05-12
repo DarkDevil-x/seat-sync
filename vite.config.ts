@@ -1,7 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 import { localApiPlugin } from "./plugins/vite-local-api";
 
 // https://vitejs.dev/config/
@@ -18,7 +17,6 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
-      mode === 'development' && componentTagger(),
       mode === 'development' && localApiPlugin(),
     ].filter(Boolean),
     resolve: {
