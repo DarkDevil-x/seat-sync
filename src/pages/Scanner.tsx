@@ -1,67 +1,60 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Html5Qrcode, Html5QrcodeScannerState } from "html5-qrcode";
+import { Html5QrcodeScanner } from "html5-qrcode";
 
 export default function Scanner() {
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [scanning, setScanning] = useState(true);
+  const [scanSuccess, setScanSuccess] = useState(false);
 
   useEffect(() => {
     const scannerId = "qr-scanner";
     
-    const startScanner = async () => {
-      try {
-        const html5QrCode = new Html5Qrcode(scannerId);
-        scannerRef.current = html5QrCode;
-
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-        
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          config,
-          (decodedText) => {
-            console.log("Scanned QR:", decodedText);
-            
-            // Check if it's a SeatSync validation URL
-            const isValidSeatSyncQR = 
-              decodedText.startsWith("https://seat-sync-five.vercel.app/validate/") ||
-              decodedText.startsWith("http://localhost:8080/validate/");
-            
-            if (isValidSeatSyncQR) {
-              // Stop scanning and redirect
-              html5QrCode.stop().then(() => {
-                setScanning(false);
-                window.location.href = decodedText;
-              });
-            } else {
-              setError("Invalid SeatSync QR - scan a ticket QR code");
-              setTimeout(() => setError(""), 2000);
-            }
-          },
-          (errorMessage) => {
-            // Ignore scan errors during normal operation
-            // Only log if it's a critical error
-            console.debug("Scan error:", errorMessage);
-          }
-        );
-        
-      } catch (err) {
-        setError("Camera access denied. Please allow camera permissions.");
-        setScanning(false);
-        console.error("Scanner error:", err);
+    const onScanSuccess = (decodedText: string) => {
+      console.log("Scanned QR:", decodedText);
+      setScanSuccess(true);
+      
+      const isValidSeatSyncQR = 
+        decodedText.startsWith("https://seat-sync-five.vercel.app/validate/") ||
+        decodedText.startsWith("http://localhost:8080/validate/");
+      
+      if (isValidSeatSyncQR) {
+        if (scannerRef.current) {
+          scannerRef.current.clear();
+        }
+        window.location.href = decodedText;
+      } else {
+        setError("Invalid SeatSync QR - scan a ticket QR code");
+        setTimeout(() => setError(""), 2000);
+        setScanSuccess(false);
       }
     };
 
-    startScanner();
+    const onScanError = (errorMessage: string) => {
+      // Ignore scan errors during normal operation
+      console.debug("Scan attempt:", errorMessage);
+    };
+
+    try {
+      const scanner = new Html5QrcodeScanner(
+        scannerId,
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        /* verbose= */ false
+      );
+      scannerRef.current = scanner;
+      scanner.render(onScanSuccess, onScanError);
+    } catch (err: any) {
+      console.error("Scanner error:", err);
+      setError(err.message || "Camera access denied");
+      setScanning(false);
+    }
 
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.stop().catch((err) => {
-          console.error("Error stopping scanner:", err);
-        });
+        scannerRef.current.clear().catch(() => {});
       }
     };
   }, []);
@@ -119,12 +112,13 @@ export default function Scanner() {
           style={{
             position: "relative",
             width: "100%",
-            aspectRatio: "1",
+            height: "280px",
             maxWidth: "280px",
             margin: "0 auto 20px",
             borderRadius: "12px",
             overflow: "hidden",
             backgroundColor: "#27272A",
+            border: scanSuccess ? "2px solid #22C55E" : "2px solid #E85D4E40",
           }}
         />
 
