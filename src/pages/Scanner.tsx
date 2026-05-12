@@ -5,10 +5,27 @@ import { Html5Qrcode } from "html5-qrcode";
 export default function Scanner() {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
+  const cleanedUpRef = useRef(false);
+  const hasScannedRef = useRef(false);
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(true);
+
+  const cleanupScanner = async () => {
+    if (cleanedUpRef.current) return;
+    cleanedUpRef.current = true;
+
+    try {
+      if (scannerRef.current) {
+        await scannerRef.current.stop();
+        await scannerRef.current.clear();
+        scannerRef.current = null;
+      }
+    } catch (err) {
+      console.warn("Scanner cleanup skipped:", err);
+    }
+  };
 
   useEffect(() => {
     const scannerId = "qr-scanner";
@@ -33,21 +50,24 @@ export default function Scanner() {
         await html5QrCode.start(
           config.videoConstraints,
           config,
-          (decodedText) => {
+          async (decodedText) => {
+            if (hasScannedRef.current) return;
+            hasScannedRef.current = true;
+            
             console.log("Scanned QR:", decodedText);
             
             // Dynamic URL validation - works with any domain
             try {
               const url = new URL(decodedText);
               if (url.pathname.startsWith("/validate/")) {
-                html5QrCode.stop().then(() => {
-                  setScanning(false);
-                  window.location.href = decodedText;
-                });
+                await cleanupScanner();
+                window.location.href = decodedText;
               } else {
+                hasScannedRef.current = false;
                 console.warn("Invalid SeatSync QR - not a validation URL");
               }
             } catch (err) {
+              hasScannedRef.current = false;
               console.error("Invalid QR code format");
             }
           },
@@ -70,11 +90,7 @@ export default function Scanner() {
     startScanner();
 
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch((err) => {
-          console.error("Error stopping scanner:", err);
-        });
-      }
+      cleanupScanner();
     };
   }, []);
 
