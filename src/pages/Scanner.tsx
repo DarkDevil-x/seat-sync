@@ -18,19 +18,45 @@ export default function Scanner() {
 
     try {
       if (scannerRef.current) {
-        await scannerRef.current.stop();
-        await scannerRef.current.clear();
+        const scanner = scannerRef.current;
         scannerRef.current = null;
+        
+        try {
+          await scanner.stop();
+        } catch (e) {
+          // Scanner may already be stopped - ignore
+        }
+        
+        try {
+          await scanner.clear();
+        } catch (e) {
+          // Element may already be cleared - ignore
+        }
       }
     } catch (err) {
       console.warn("Scanner cleanup skipped:", err);
     }
   };
 
+  const handleSuccessfulScan = async (url: string) => {
+    if (hasScannedRef.current) return;
+    hasScannedRef.current = true;
+    
+    // Clean up scanner before redirect
+    await cleanupScanner();
+    
+    // Small delay to allow camera stream to stop cleanly
+    setTimeout(() => {
+      window.location.href = url;
+    }, 100);
+  };
+
   useEffect(() => {
     const scannerId = "qr-scanner";
     
     const startScanner = async () => {
+      if (cleanedUpRef.current) return;
+      
       try {
         const html5QrCode = new Html5Qrcode(scannerId);
         scannerRef.current = html5QrCode;
@@ -50,24 +76,18 @@ export default function Scanner() {
         await html5QrCode.start(
           config.videoConstraints,
           config,
-          async (decodedText) => {
-            if (hasScannedRef.current) return;
-            hasScannedRef.current = true;
-            
+          (decodedText) => {
             console.log("Scanned QR:", decodedText);
             
             // Dynamic URL validation - works with any domain
             try {
               const url = new URL(decodedText);
               if (url.pathname.startsWith("/validate/")) {
-                await cleanupScanner();
-                window.location.href = decodedText;
+                handleSuccessfulScan(decodedText);
               } else {
-                hasScannedRef.current = false;
                 console.warn("Invalid SeatSync QR - not a validation URL");
               }
             } catch (err) {
-              hasScannedRef.current = false;
               console.error("Invalid QR code format");
             }
           },
