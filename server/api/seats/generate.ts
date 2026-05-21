@@ -1,5 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import mongoose from 'mongoose';
 import dbConnect from '../../db.js';
+import Booking from '../../models/Booking.js';
+import BookingSeat from '../../models/BookingSeat.js';
 import Seat from '../../models/Seat.js';
 import { setCorsHeaders } from '../_utils/cors.js';
 import { requireAdmin } from '../_utils/auth.js';
@@ -50,7 +53,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'eventId and seatPrice are required' });
     }
 
-    // Remove existing seats for this event first
+    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      return res.status(400).json({ error: 'Invalid eventId' });
+    }
+
+    // Regenerating seats invalidates any bookings tied to them. Old code
+    // wiped Seats but left BookingSeat rows pointing at the now-deleted seat
+    // ids, and old Bookings stayed visible in /api/bookings.
+    // Cascade: cancel existing bookings + drop their seat junction rows.
+    const existingBookings = await Booking.find({ event_id: eventId })
+      .select('_id')
+      .lean();
+    if (existingBookings.length > 0) {
+      const bookingIds = existingBookings.map((b) => String((b as { _id: unknown })._id));
+      await BookingSeat.deleteMany({ booking_id: { $in: bookingIds } } as any);
+      await Booking.updateMany(
+        { _id: { $in: bookingIds }, status: { $ne: 'cancelled' } } as any,
+        { $set: { status: 'cancelled' } }
+      );
+    }
     await Seat.deleteMany({ event_id: eventId });
 
     const basePrice = parseFloat(String(seatPrice));

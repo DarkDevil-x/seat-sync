@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import dbConnect from '../db.js';
 import Booking from '../models/Booking.js';
 import BookingSeat from '../models/BookingSeat.js';
+import Event from '../models/Event.js';
 import Seat from '../models/Seat.js';
 import { setCorsHeaders } from './_utils/cors.js';
 import { requireAuth } from './_utils/auth.js';
@@ -48,7 +49,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(enriched);
     }
 
-    // POST /api/bookings  – atomic: verify holds → create booking → link seats → mark booked
+    // POST /api/bookings  – atomic: verify holds → enforce booking guards →
+    //                     create booking → link seats → mark booked
     if (req.method === 'POST') {
       const { eventId, seatIds, totalPrice } = req.body as {
         eventId: string;
@@ -58,6 +60,62 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!eventId || !seatIds || seatIds.length === 0) {
         return res.status(400).json({ error: 'eventId and seatIds are required' });
+      }
+      if (!mongoose.Types.ObjectId.isValid(eventId)) {
+        return res.status(400).json({ error: 'Invalid eventId' });
+      }
+
+      // ── Server-side guards (cannot trust the client) ─────────────────────
+      // Load the event once and check every business rule before we touch
+      // the seats or open a transaction. Cheaper to bail early.
+      const event = await Event.findById(eventId).lean() as
+        | (Record<string, unknown> & {
+            is_published?: boolean;
+            is_bookings_open?: boolean;
+            date?: Date;
+            max_seats_per_user?: number;
+            max_tickets_per_event?: number | null;
+            banned_users?: string[];
+          })
+        | null;
+      if (!event) return res.status(404).json({ error: 'Event not found' });
+      if (!event.is_published) return res.status(403).json({ error: 'Event is not published' });
+      if (event.is_bookings_open === false) {
+        return res.status(403).json({ error: 'Bookings are closed for this event' });
+      }
+      if (event.date && new Date(event.date).getTime() < Date.now()) {
+        return res.status(403).json({ error: 'Event has already started' });
+      }
+      if (Array.isArray(event.banned_users) && event.banned_users.includes(authUser.userId)) {
+        return res.status(403).json({ error: 'You are not allowed to book this event' });
+      }
+
+      // Enforce per-user seat cap. We count CURRENT confirmed bookings the
+      // user already has for this event so each request can't slip in just
+      // under the cap on its own.
+      const maxPerUser = event.max_seats_per_user ?? 10;
+      if (seatIds.length > maxPerUser) {
+        return res
+          .status(400)
+          .json({ error: `Cannot book more than ${maxPerUser} seats at once for this event` });
+      }
+      if (maxPerUser > 0) {
+        const userBookings = await Booking.find({
+          event_id: eventId,
+          user_id: authUser.userId,
+          status: 'confirmed',
+        }).select('_id').lean();
+        if (userBookings.length > 0) {
+          const userBookingIds = userBookings.map((b) => String((b as { _id: unknown })._id));
+          const existingSeatCount = await BookingSeat.countDocuments({
+            booking_id: { $in: userBookingIds },
+          } as any);
+          if (existingSeatCount + seatIds.length > maxPerUser) {
+            return res.status(400).json({
+              error: `Booking limit exceeded. You can book at most ${maxPerUser} seats for this event (already have ${existingSeatCount}).`,
+            });
+          }
+        }
       }
 
       const session = await mongoose.startSession();
@@ -81,11 +139,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
         }
 
-        const price = totalPrice ?? heldSeats.reduce((sum, s) => sum + s.price, 0);
+        // Server is the source of truth for price — never trust the client value.
+        const serverPrice = heldSeats.reduce((sum, s) => sum + s.price, 0);
+        // Allow the client to send totalPrice for display, but if it diverges
+        // significantly (>1¢ tolerance for float drift), reject the request.
+        if (typeof totalPrice === 'number' && Math.abs(totalPrice - serverPrice) > 0.01) {
+          await session.abortTransaction();
+          return res.status(400).json({ error: 'Price mismatch — please refresh and retry' });
+        }
 
         // Create the booking record
         const [booking] = await Booking.create(
-          [{ event_id: eventId, user_id: authUser.userId, total_price: price, status: 'confirmed' }],
+          [{ event_id: eventId, user_id: authUser.userId, total_price: serverPrice, status: 'confirmed' }],
           { session }
         );
 

@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import mongoose from 'mongoose';
 import dbConnect from '../../db.js';
 import Booking from '../../models/Booking.js';
 import Seat from '../../models/Seat.js';
@@ -18,27 +19,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { userId } = requireAuth(req);
     const { bookingId } = req.body as { bookingId: string };
     if (!bookingId) return res.status(400).json({ error: 'bookingId is required' });
+    if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+      return res.status(400).json({ error: 'Invalid bookingId' });
+    }
 
     const booking = await Booking.findOne({ _id: bookingId, user_id: userId });
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
-    if (booking.status === 'cancelled') return res.status(400).json({ error: 'Booking is already cancelled' });
+    if (booking.status === 'cancelled') {
+      return res.status(400).json({ error: 'Booking is already cancelled' });
+    }
 
-    // Check 24-hour rule
-    const event = await Event.findById(booking.event_id);
+    // 24-hour cancellation policy
+    const event = await Event.findById(booking.event_id).select('date').lean();
     if (event) {
-      const hoursUntilEvent = (new Date(event.date).getTime() - Date.now()) / 36e5;
+      const hoursUntilEvent =
+        (new Date((event as { date: Date }).date).getTime() - Date.now()) / 36e5;
       if (hoursUntilEvent < 24) {
         return res.status(400).json({ error: 'Cannot cancel within 24 hours of event' });
       }
     }
 
-    booking.status = 'cancelled';
-    await booking.save();
+    // Cancel + release seats atomically. Old code did findByIdAndUpdate per
+    // seat (N+1) with no transaction — a mid-loop failure left the booking
+    // cancelled but seats still flagged 'booked', so they couldn't be re-sold.
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      booking.status = 'cancelled';
+      await booking.save({ session });
 
-    // Release seats back to available
-    const bookingSeats = await BookingSeat.find({ booking_id: bookingId });
-    for (const bs of bookingSeats) {
-      await Seat.findByIdAndUpdate(bs.seat_id, { status: 'available' });
+      const bookingSeats = await BookingSeat.find({ booking_id: bookingId })
+        .select('seat_id')
+        .session(session)
+        .lean();
+      const seatIds = bookingSeats.map((bs) =>
+        String((bs as { seat_id: unknown }).seat_id),
+      );
+
+      if (seatIds.length > 0) {
+        await Seat.updateMany(
+          { _id: { $in: seatIds } } as any,
+          { $set: { status: 'available', heldBy: null, heldUntil: null } },
+          { session }
+        );
+      }
+
+      await session.commitTransaction();
+    } catch (txErr) {
+      await session.abortTransaction();
+      throw txErr;
+    } finally {
+      session.endSession();
     }
 
     return res.status(200).json({ message: 'Booking cancelled', booking });

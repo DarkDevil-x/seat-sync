@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/providers/AuthProvider";
 import {
@@ -131,8 +131,24 @@ export default function AdminDashboard() {
   const [showUserDialog, setShowUserDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   // Search and action loading
-  const [searchQuery, setSearchQuery] = useState("");
+  // Per-tab search — used to be a single shared query that filtered all three
+  // tables at once. Typing "concert" in Events would also hide bookings/users.
+  const [eventSearch, setEventSearch] = useState("");
+  const [bookingSearch, setBookingSearch] = useState("");
+  const [userSearch, setUserSearch] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // Dashboard-wide stats (true totals, not paginated)
+  const [stats, setStats] = useState<{
+    events: { total: number; published: number; drafts: number };
+    users: { total: number; admins: number; newThisMonth: number };
+    bookings: {
+      total: number; confirmed: number; cancelled: number; pending: number;
+      refunded: number; revenue: number;
+    };
+    bookingTrend: Array<{ date: string; count: number }>;
+    revenueByEvent: Array<{ title: string; revenue: number }>;
+    categoryBreakdown: Array<{ category: string; count: number }>;
+  } | null>(null);
 
   // ── Analytics ──────────────────────────────────────────────────────────────
   const [showAnalyticsDialog, setShowAnalyticsDialog] = useState(false);
@@ -178,12 +194,24 @@ export default function AdminDashboard() {
   }, [user]);
 
   useEffect(() => {
-    if (isAdmin) {
-      fetchEvents();
-      fetchBookings();
-      fetchUsers();
-    }
+    if (!isAdmin) return;
+    // Fire all four initial requests in parallel — previously these ran
+    // serially (waterfall) since each was just dispatched then ignored.
+    void Promise.allSettled([fetchEvents(), fetchBookings(), fetchUsers(), fetchStats()]);
   }, [isAdmin]);
+
+  const fetchStats = async () => {
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch("/api/admin/stats", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) return;
+      setStats(await res.json());
+    } catch (err) {
+      console.error("Error fetching stats:", err);
+    }
+  };
 
   const checkAdmin = async () => {
     if (!user) return;
@@ -514,6 +542,7 @@ export default function AdminDashboard() {
       });
       
       fetchEvents();
+      void fetchStats();
       setShowEventDialog(false);
     } catch (error: any) {
       console.error("Error saving event:", error);
@@ -548,6 +577,7 @@ export default function AdminDashboard() {
       
       fetchEvents();
       fetchBookings();
+      void fetchStats();
     } catch (error: any) {
       console.error("Error deleting event:", error);
       toast({
@@ -645,6 +675,7 @@ export default function AdminDashboard() {
       if (!response.ok) throw new Error(result.error || "Failed to update booking");
       toast({ title: "Updated", description: `Booking marked as ${status}` });
       fetchBookings();
+      void fetchStats();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -1085,25 +1116,51 @@ export default function AdminDashboard() {
     return null; // Will redirect in useEffect
   }
 
-  const q = searchQuery.toLowerCase();
-  const filteredEvents = events.filter(
-    (e) =>
-      e.title.toLowerCase().includes(q) ||
-      (e.location || "").toLowerCase().includes(q) ||
-      (e.category || "").toLowerCase().includes(q)
+  // Memoised filters — recompute only when source data or its tab's query
+  // changes (used to re-run all three lists on every keystroke in any tab).
+  const filteredEvents = useMemo(() => {
+    const q = eventSearch.trim().toLowerCase();
+    if (!q) return events;
+    return events.filter(
+      (e) =>
+        e.title.toLowerCase().includes(q) ||
+        (e.location || "").toLowerCase().includes(q) ||
+        (e.category || "").toLowerCase().includes(q)
+    );
+  }, [events, eventSearch]);
+
+  const filteredBookings = useMemo(() => {
+    const q = bookingSearch.trim().toLowerCase();
+    if (!q) return bookings;
+    return bookings.filter(
+      (b) =>
+        (b.events?.title || "").toLowerCase().includes(q) ||
+        (b.profiles?.first_name || "").toLowerCase().includes(q) ||
+        (b.profiles?.last_name || "").toLowerCase().includes(q) ||
+        (b.profiles?.email || "").toLowerCase().includes(q)
+    );
+  }, [bookings, bookingSearch]);
+
+  const filteredUsers = useMemo(() => {
+    const q = userSearch.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        (u.first_name || "").toLowerCase().includes(q) ||
+        (u.last_name || "").toLowerCase().includes(q) ||
+        (u.email || "").toLowerCase().includes(q)
+    );
+  }, [users, userSearch]);
+
+  // Chart data — derived from `stats` (true totals) so it always reflects the
+  // full dataset, not just the current paginated page.
+  const bookingTrendData = useMemo(
+    () => (stats?.bookingTrend ?? []).slice(-30),
+    [stats?.bookingTrend]
   );
-  const filteredBookings = bookings.filter(
-    (b) =>
-      (b.events?.title || "").toLowerCase().includes(q) ||
-      (b.profiles?.first_name || "").toLowerCase().includes(q) ||
-      (b.profiles?.last_name || "").toLowerCase().includes(q) ||
-      (b.profiles?.email || "").toLowerCase().includes(q)
-  );
-  const filteredUsers = users.filter(
-    (u) =>
-      (u.first_name || "").toLowerCase().includes(q) ||
-      (u.last_name || "").toLowerCase().includes(q) ||
-      (u.email || "").toLowerCase().includes(q)
+  const revenueByEventData = useMemo(
+    () => (stats?.revenueByEvent ?? []).map((r) => ({ title: r.title ?? "Unknown", amount: r.revenue })),
+    [stats?.revenueByEvent]
   );
 
   return (
@@ -1121,7 +1178,8 @@ export default function AdminDashboard() {
 
         {/* ── Overview Tab ── */}
         <TabsContent value="overview">
-          {/* KPI Cards */}
+          {/* KPI Cards — sourced from /api/admin/stats so they show TRUE totals,
+              not just the currently-fetched paginated page. */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <Card>
               <CardContent className="p-5">
@@ -1129,8 +1187,10 @@ export default function AdminDashboard() {
                   <p className="text-sm text-muted-foreground">Total Events</p>
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <p className="text-3xl font-bold">{events.length}</p>
-                <p className="text-xs text-muted-foreground mt-1">{events.filter(e => e.is_published).length} published</p>
+                <p className="text-3xl font-bold">{stats?.events.total ?? events.length}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stats?.events.published ?? events.filter(e => e.is_published).length} published
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -1139,18 +1199,22 @@ export default function AdminDashboard() {
                   <p className="text-sm text-muted-foreground">Total Bookings</p>
                   <Ticket className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <p className="text-3xl font-bold">{bookings.length}</p>
-                <p className="text-xs text-muted-foreground mt-1">{bookings.filter((b: any) => b.status === 'confirmed').length} confirmed</p>
+                <p className="text-3xl font-bold">{stats?.bookings.total ?? bookings.length}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stats?.bookings.confirmed ?? bookings.filter((b: any) => b.status === 'confirmed').length} confirmed
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-muted-foreground">Total Students</p>
+                  <p className="text-sm text-muted-foreground">Total Users</p>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <p className="text-3xl font-bold">{users.length}</p>
-                <p className="text-xs text-muted-foreground mt-1">{users.filter((u: any) => u.is_admin).length} admins</p>
+                <p className="text-3xl font-bold">{stats?.users.total ?? users.length}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stats?.users.admins ?? users.filter((u: any) => u.is_admin).length} admins
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -1160,7 +1224,7 @@ export default function AdminDashboard() {
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <p className="text-3xl font-bold">
-                  ${bookings.filter((b: any) => b.status === 'confirmed').reduce((sum: number, b: any) => sum + (b.total_price ?? 0), 0).toFixed(0)}
+                  ${(stats?.bookings.revenue ?? 0).toFixed(0)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">confirmed bookings</p>
               </CardContent>
@@ -1175,15 +1239,7 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={(() => {
-                    const trend: Record<string, number> = {};
-                    bookings.forEach((b: any) => {
-                      const date = new Date(b.created_at).toLocaleDateString();
-                      trend[date] = (trend[date] || 0) + 1;
-                    });
-                    const last30 = Object.entries(trend).slice(-30).map(([date, count]) => ({ date, count }));
-                    return last30;
-                  })()}>
+                  <LineChart data={bookingTrendData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                     <YAxis tick={{ fontSize: 10 }} />
@@ -1200,16 +1256,7 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={(() => {
-                    const revenue: Record<string, number> = {};
-                    bookings.forEach((b: any) => {
-                      if (b.status === 'confirmed') {
-                        const title = b.events?.title || 'Unknown';
-                        revenue[title] = (revenue[title] || 0) + (b.total_price || 0);
-                      }
-                    });
-                    return Object.entries(revenue).map(([title, amount]) => ({ title, amount })).slice(0, 10);
-                  })()}>
+                  <BarChart data={revenueByEventData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="title" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
                     <YAxis tick={{ fontSize: 10 }} />
@@ -1233,8 +1280,9 @@ export default function AdminDashboard() {
                   { label: 'Cancelled', key: 'cancelled', icon: <XCircle className="h-4 w-4 text-red-500" /> },
                   { label: 'Pending',   key: 'pending',   icon: <Clock className="h-4 w-4 text-amber-500" /> },
                 ] as const).map(({ label, key, icon }) => {
-                  const count = bookings.filter((b: any) => b.status === key).length;
-                  const pct = bookings.length ? Math.round((count / bookings.length) * 100) : 0;
+                  const count = stats?.bookings[key] ?? bookings.filter((b: any) => b.status === key).length;
+                  const total = stats?.bookings.total ?? bookings.length;
+                  const pct = total ? Math.round((count / total) * 100) : 0;
                   return (
                     <div key={key}>
                       <div className="flex items-center justify-between mb-1">
@@ -1257,22 +1305,23 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {(() => {
-                  const cats: Record<string, number> = {};
-                  events.forEach((e: any) => { cats[e.category || 'Uncategorized'] = (cats[e.category || 'Uncategorized'] || 0) + 1; });
-                  const total = events.length || 1;
-                  return Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([cat, cnt]) => (
-                    <div key={cat}>
+                  const cats = stats?.categoryBreakdown;
+                  if (!cats || cats.length === 0) {
+                    return <p className="text-sm text-muted-foreground">No events yet</p>;
+                  }
+                  const total = cats.reduce((sum, c) => sum + c.count, 0) || 1;
+                  return cats.map(({ category, count }) => (
+                    <div key={category}>
                       <div className="flex justify-between mb-1">
-                        <span className="text-sm">{cat}</span>
-                        <span className="text-sm font-medium">{cnt}</span>
+                        <span className="text-sm">{category}</span>
+                        <span className="text-sm font-medium">{count}</span>
                       </div>
                       <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                        <div className="h-full rounded-full bg-primary" style={{ width: `${Math.round((cnt / total) * 100)}%` }} />
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${Math.round((count / total) * 100)}%` }} />
                       </div>
                     </div>
                   ));
                 })()}
-                {events.length === 0 && <p className="text-sm text-muted-foreground">No events yet</p>}
               </CardContent>
             </Card>
           </div>
@@ -1327,25 +1376,25 @@ export default function AdminDashboard() {
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Total Events</p>
-                <p className="text-2xl font-bold">{events.length}</p>
+                <p className="text-2xl font-bold">{stats?.events.total ?? events.length}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Published</p>
-                <p className="text-2xl font-bold">{events.filter(e => e.is_published).length}</p>
+                <p className="text-2xl font-bold">{stats?.events.published ?? events.filter(e => e.is_published).length}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Drafts</p>
-                <p className="text-2xl font-bold">{events.filter(e => !e.is_published).length}</p>
+                <p className="text-2xl font-bold">{stats?.events.drafts ?? events.filter(e => !e.is_published).length}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Total Bookings</p>
-                <p className="text-2xl font-bold">{bookings.length}</p>
+                <p className="text-2xl font-bold">{stats?.bookings.total ?? bookings.length}</p>
               </CardContent>
             </Card>
           </div>
@@ -1363,8 +1412,8 @@ export default function AdminDashboard() {
               <div className="mb-4">
                 <Input
                   placeholder="Search events..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={eventSearch}
+                  onChange={(e) => setEventSearch(e.target.value)}
                   className="max-w-sm"
                 />
               </div>
@@ -1543,25 +1592,29 @@ export default function AdminDashboard() {
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold">{bookings.length}</p>
+                <p className="text-2xl font-bold">{stats?.bookings.total ?? bookings.length}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Confirmed</p>
-                <p className="text-2xl font-bold text-green-600">{bookings.filter(b => b.status === 'confirmed').length}</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {stats?.bookings.confirmed ?? bookings.filter(b => b.status === 'confirmed').length}
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Cancelled</p>
-                <p className="text-2xl font-bold text-red-600">{bookings.filter(b => b.status === 'cancelled').length}</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {stats?.bookings.cancelled ?? bookings.filter(b => b.status === 'cancelled').length}
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Revenue</p>
-                <p className="text-2xl font-bold">${bookings.filter(b => b.status === 'confirmed').reduce((sum, b) => sum + b.total_price, 0).toFixed(2)}</p>
+                <p className="text-2xl font-bold">${(stats?.bookings.revenue ?? 0).toFixed(2)}</p>
               </CardContent>
             </Card>
           </div>
@@ -1574,8 +1627,8 @@ export default function AdminDashboard() {
               <div className="mb-4">
                 <Input
                   placeholder="Search bookings..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={bookingSearch}
+                  onChange={(e) => setBookingSearch(e.target.value)}
                   className="max-w-sm"
                 />
               </div>
@@ -1665,19 +1718,21 @@ export default function AdminDashboard() {
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Total Users</p>
-                <p className="text-2xl font-bold">{users.length}</p>
+                <p className="text-2xl font-bold">{stats?.users.total ?? users.length}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Admins</p>
-                <p className="text-2xl font-bold text-primary">{users.filter(u => u.is_admin).length}</p>
+                <p className="text-2xl font-bold text-primary">
+                  {stats?.users.admins ?? users.filter(u => u.is_admin).length}
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">New This Month</p>
-                <p className="text-2xl font-bold">{users.filter(u => new Date(u.created_at || u.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length}</p>
+                <p className="text-2xl font-bold">{stats?.users.newThisMonth ?? 0}</p>
               </CardContent>
             </Card>
           </div>
@@ -1704,8 +1759,8 @@ export default function AdminDashboard() {
               <div className="mb-4">
                 <Input
                   placeholder="Search users..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
                   className="max-w-sm"
                 />
               </div>
