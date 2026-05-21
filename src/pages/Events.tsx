@@ -1,8 +1,8 @@
-import { useState, useEffect, memo, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, memo, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Calendar, MapPin, Search, SlidersHorizontal, Zap, Heart, ArrowRight, X } from "lucide-react";
+import { Calendar, MapPin, Search, Zap, Heart, ArrowRight, X } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 
@@ -23,18 +23,24 @@ type Event = {
 
 const PAGE_SIZE = 12;
 
-// ── Module-level 30-second cache ──────────────────────────────────────────────
-let _cache: { data: Event[]; filter: string; ts: number } | null = null;
-const CACHE_TTL = 30_000;
+// Cached Intl.DateTimeFormat is ~10× faster than calling toLocaleDateString
+// per row — the latter rebuilds the formatter on every call.
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+});
+const formatDate = (dateString: string) => dateFormatter.format(new Date(dateString));
 
-// ── Date formatter ────────────────────────────────────────────────────────────
-const formatDate = (dateString: string) =>
-  new Date(dateString).toLocaleDateString("en-US", {
-    weekday: "short",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+async function fetchEventsList(filter: string): Promise<Event[]> {
+  const url = new URL("/api/events", window.location.origin);
+  url.searchParams.set("published", "true");
+  if (filter !== "all") url.searchParams.set("category", filter);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Failed: ${res.status}`);
+  return (await res.json()) as Event[];
+}
 
 // ── Shimmer Skeleton Card ─────────────────────────────────────────────────────
 const SkeletonCard = ({ index }: { index: number }) => (
@@ -81,18 +87,8 @@ const EventCard = memo(({ event, index, bookmarked, onToggleBookmark }: {
   return (
     <div className="h-full animate-fadeIn" style={{ animationDelay: `${(index % 8) * 60}ms` }}>
       <div
-        className="group relative flex flex-col h-full rounded-2xl overflow-hidden border border-border bg-card transition-all duration-300 hover:-translate-y-1.5 hover:border-primary/30"
-        style={{
-          minHeight: "420px",
-          boxShadow: "var(--card-shadow)",
-          willChange: "transform",
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--card-shadow-hover)";
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--card-shadow)";
-        }}
+        className="event-card group relative flex flex-col h-full rounded-2xl overflow-hidden border border-border bg-card transition-all duration-300 hover:-translate-y-1.5 hover:border-primary/30"
+        style={{ minHeight: "420px" }}
       >
         {/* ── Image ──────────────────────────────────────────────── */}
         <Link to={`/events/${event.id}`} className="block flex-shrink-0">
@@ -259,10 +255,7 @@ FilterPill.displayName = "FilterPill";
 
 // ── Main Events Page ──────────────────────────────────────────────────────────
 export default function Events() {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
-  const [categories, setCategories] = useState<string[]>([]);
   const [searchRaw, setSearchRaw] = useState("");
   const search = useDebounce(searchRaw, 280);
   const [dateFilter, setDateFilter] = useState<"all" | "today" | "week" | "month">("all");
@@ -270,7 +263,20 @@ export default function Events() {
   const [sortBy, setSortBy] = useState<"date" | "price-asc" | "price-desc">("date");
   const [page, setPage] = useState(1);
   const [bookmarks, setBookmarks] = useLocalStorage<string[]>("ss_bookmarks", []);
-  const fetchAbortRef = useRef<AbortController | null>(null);
+
+  const { data: events = [], isLoading: loading } = useQuery({
+    queryKey: ["events", "list", filter],
+    queryFn: () => fetchEventsList(filter),
+    staleTime: 60_000,
+    // Keep previous data visible while refetching after a filter change —
+    // avoids the page flashing back to the skeleton on every pill click.
+    placeholderData: (prev) => prev,
+  });
+
+  const categories = useMemo(
+    () => Array.from(new Set(events.map((e) => e.category))),
+    [events]
+  );
 
   const toggleBookmark = useCallback((id: string) => {
     setBookmarks((prev) =>
@@ -280,44 +286,6 @@ export default function Events() {
 
   // Reset page when filters change
   useEffect(() => { setPage(1); }, [search, dateFilter, freeOnly, sortBy, filter]);
-
-  // Fetch events — cancel previous request when filter changes or on unmount
-  useEffect(() => {
-    fetchEvents();
-    return () => { fetchAbortRef.current?.abort(); };
-  }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const fetchEvents = async () => {
-    const now = Date.now();
-    if (_cache && _cache.filter === filter && now - _cache.ts < CACHE_TTL) {
-      setEvents(_cache.data);
-      setCategories(Array.from(new Set(_cache.data.map((e) => e.category))));
-      setLoading(false);
-      return;
-    }
-
-    fetchAbortRef.current?.abort();
-    fetchAbortRef.current = new AbortController();
-    setLoading(true);
-    try {
-      const url = new URL("/api/events", window.location.origin);
-      url.searchParams.set("published", "true");
-      if (filter !== "all") url.searchParams.set("category", filter);
-
-      const response = await fetch(url.toString(), { signal: fetchAbortRef.current.signal });
-      if (!response.ok) throw new Error(`Failed: ${response.status}`);
-
-      const data: Event[] = await response.json();
-      setEvents(data);
-      setCategories(Array.from(new Set(data.map((e) => e.category))));
-      _cache = { data, filter, ts: now };
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return;
-      console.error("Error fetching events:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Memoised filtering + sorting
   const filtered = useMemo(() => {

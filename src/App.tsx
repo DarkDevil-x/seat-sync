@@ -3,28 +3,51 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from 'next-themes';
 import { AuthProvider } from "./providers/AuthProvider";
 import Index from "./pages/Index";
 import Header from "./components/Header";
-const Auth           = lazy(() => import("./pages/Auth"));
-const NotFound       = lazy(() => import("./pages/NotFound"));
 
-const Events        = lazy(() => import("./pages/Events"));
-const EventDetail   = lazy(() => import("./pages/EventDetail"));
-const Profile       = lazy(() => import("./pages/Profile"));
-const Admin         = lazy(() => import("./pages/Admin"));
-const MyTickets     = lazy(() => import("./pages/MyTickets"));
-const AdminSetup    = lazy(() => import("./pages/AdminSetup"));
-const TicketGenerator  = lazy(() => import("./pages/TicketGenerator"));
-const AdminBookings    = lazy(() => import("./pages/AdminBookings"));
-const ValidateTicket   = lazy(() => import("./pages/ValidateTicket"));
-const Scanner          = lazy(() => import("./pages/Scanner"));
+// Lazy-load every non-Index page. The dynamic-import factory is kept around
+// so we can warm its chunk during browser idle time (see warmRoutes below).
+const lazyImports = {
+  Auth: () => import("./pages/Auth"),
+  NotFound: () => import("./pages/NotFound"),
+  Events: () => import("./pages/Events"),
+  EventDetail: () => import("./pages/EventDetail"),
+  Profile: () => import("./pages/Profile"),
+  Admin: () => import("./pages/Admin"),
+  MyTickets: () => import("./pages/MyTickets"),
+  AdminSetup: () => import("./pages/AdminSetup"),
+  TicketGenerator: () => import("./pages/TicketGenerator"),
+  AdminBookings: () => import("./pages/AdminBookings"),
+  ValidateTicket: () => import("./pages/ValidateTicket"),
+  Scanner: () => import("./pages/Scanner"),
+};
 
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/react";
+const Auth            = lazy(lazyImports.Auth);
+const NotFound        = lazy(lazyImports.NotFound);
+const Events          = lazy(lazyImports.Events);
+const EventDetail     = lazy(lazyImports.EventDetail);
+const Profile         = lazy(lazyImports.Profile);
+const Admin           = lazy(lazyImports.Admin);
+const MyTickets       = lazy(lazyImports.MyTickets);
+const AdminSetup      = lazy(lazyImports.AdminSetup);
+const TicketGenerator = lazy(lazyImports.TicketGenerator);
+const AdminBookings   = lazy(lazyImports.AdminBookings);
+const ValidateTicket  = lazy(lazyImports.ValidateTicket);
+const Scanner         = lazy(lazyImports.Scanner);
+
+// Analytics + SpeedInsights are non-critical — defer them to their own chunks
+// so they don't block initial paint.
+const Analytics = lazy(() =>
+  import("@vercel/analytics/react").then((m) => ({ default: m.Analytics })),
+);
+const SpeedInsights = lazy(() =>
+  import("@vercel/speed-insights/react").then((m) => ({ default: m.SpeedInsights })),
+);
 
 const PageFallback = () => (
   <div className="container mx-auto py-8 px-4 space-y-4 animate-pulse">
@@ -45,9 +68,31 @@ const queryClient = new QueryClient({
       gcTime: 10 * 60_000,        // keep unused cache for 10min
       retry: 1,                   // default 3 retries hammers the server; 1 is enough
       refetchOnWindowFocus: false, // Safari fires this on every tab switch — kills perf
+      refetchOnReconnect: false,
     },
   },
 });
+
+// Warm the most-likely next routes during browser idle time so the chunk is
+// already in cache by the time the user clicks the link. ~99% of users hit
+// /events from the homepage, so prioritise that.
+function useWarmRoutes() {
+  useEffect(() => {
+    const idle =
+      (window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number })
+        .requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500));
+    const handle = idle(() => {
+      lazyImports.Events();
+      lazyImports.EventDetail();
+      lazyImports.Auth();
+    }, { timeout: 3000 });
+    return () => {
+      const cancel =
+        (window as Window & { cancelIdleCallback?: (h: number) => void }).cancelIdleCallback;
+      if (cancel) cancel(handle as number);
+    };
+  }, []);
+}
 
 const AppWithLayout = () => (
   <div className="flex flex-col min-h-screen">
@@ -69,10 +114,17 @@ const AppWithLayout = () => (
         </Routes>
       </Suspense>
     </main>
-    <Analytics />
-    <SpeedInsights />
+    <Suspense fallback={null}>
+      <Analytics />
+      <SpeedInsights />
+    </Suspense>
   </div>
 );
+
+const RouteWarmer = () => {
+  useWarmRoutes();
+  return null;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -82,6 +134,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <RouteWarmer />
             <Routes>
               <Route path="/validate/:bookingId" element={
                 <Suspense fallback={null}>

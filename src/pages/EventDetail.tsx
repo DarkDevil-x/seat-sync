@@ -1,6 +1,7 @@
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/providers/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,24 +22,65 @@ type Event = {
   category: string;
   image_url: string | null;
   is_free: boolean;
+  is_published?: boolean;
   max_seats_per_user: number;
 };
+
+async function fetchEventById(eventId: string): Promise<Event> {
+  const res = await fetch(`/api/events/${eventId}`);
+  if (!res.ok) throw new Error(`Failed: ${res.status}`);
+  return res.json();
+}
+
+async function fetchUserBookingsForEvent(userId: string, eventId: string): Promise<number> {
+  const token = localStorage.getItem("auth_token");
+  const res = await fetch(`/api/bookings?userId=${userId}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) return 0;
+  const bookings: Array<{ event?: { _id?: string }; event_id?: string; booking_seats?: unknown[] }> =
+    await res.json();
+  return bookings
+    .filter((b) => String(b.event?._id ?? b.event_id ?? "") === eventId)
+    .reduce((sum, b) => sum + (b.booking_seats?.length ?? 0), 0);
+}
 
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [event, setEvent] = useState<Event | null>(null);
-  const [loading, setLoading] = useState(true);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
-  const [userBookings, setUserBookings] = useState<number>(0);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [seatRefreshKey, setSeatRefreshKey] = useState(0);
   const [zoom, setZoom] = useState(1);
   // Prevent double-click: ignore repeated calls within 500 ms
   const lastBookingAttempt = useRef(0);
-  const fetchAbortRef = useRef<AbortController | null>(null);
+
+  const {
+    data: event,
+    isLoading: loading,
+    isError,
+  } = useQuery({
+    queryKey: ["event", id],
+    queryFn: () => fetchEventById(id!),
+    enabled: !!id,
+    staleTime: 30_000,
+  });
+
+  const { data: userBookings = 0 } = useQuery({
+    queryKey: ["user-bookings", user?.id, id],
+    queryFn: () => fetchUserBookingsForEvent(user!.id, id!),
+    enabled: !!user && !!id,
+    staleTime: 15_000,
+  });
+
+  // Redirect off unpublished / missing events without spamming /api on each render.
+  useEffect(() => {
+    if (!loading && (isError || (event && !event.is_published))) {
+      navigate("/events");
+    }
+  }, [loading, isError, event, navigate]);
 
   const handleBookingDebounced = () => {
     const now = Date.now();
@@ -46,53 +88,6 @@ export default function EventDetail() {
     lastBookingAttempt.current = now;
     handleBooking();
   };
-
-  useEffect(() => {
-    if (id) fetchEvent(id);
-    return () => { fetchAbortRef.current?.abort(); };
-  }, [id]);
-
-  useEffect(() => {
-    if (user && id) checkUserBookings(id);
-  }, [user, id]);
-
-  const fetchEvent = useCallback(async (eventId: string) => {
-    fetchAbortRef.current?.abort();
-    fetchAbortRef.current = new AbortController();
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/events/${eventId}`, { signal: fetchAbortRef.current.signal });
-      if (!response.ok) { navigate("/events"); return; }
-      const data = await response.json();
-      if (!data.is_published) { navigate("/events"); return; }
-      setEvent(data as Event);
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return;
-      console.error("Error fetching event:", error);
-      navigate("/events");
-    } finally {
-      setLoading(false);
-    }
-  }, [navigate]);
-
-  const checkUserBookings = useCallback(async (eventId: string) => {
-    if (!user) return;
-    try {
-      const token = localStorage.getItem("auth_token");
-      const response = await fetch(`/api/bookings?userId=${user.id}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!response.ok) return;
-      const bookings: any[] = await response.json();
-      const seatCount = bookings
-        .filter((b) => String(b.event?._id ?? b.event_id ?? "") === eventId)
-        .reduce((sum, b) => sum + (b.booking_seats?.length ?? 0), 0);
-      setUserBookings(seatCount);
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return;
-      console.error("Error checking user bookings:", error);
-    }
-  }, [user]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

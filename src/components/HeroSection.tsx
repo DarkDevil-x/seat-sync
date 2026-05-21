@@ -143,13 +143,19 @@ export function HeroSection() {
 
           {/* ── Right: Visual (40%) ──────────────────────────────── */}
           <div className="relative hidden lg:flex flex-col gap-4 items-end animate-fadeInScale lg:col-span-2" style={{ animationDelay: "100ms" }}>
-            {/* Main image */}
+            {/* Main image — LCP candidate, prioritised + responsive srcset */}
             <div className="relative w-full rounded-2xl overflow-hidden border border-border shadow-2xl">
               <img
-                src="https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&q=80"
+                src="https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&q=75&auto=format"
+                srcSet="https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=480&q=75&auto=format 480w, https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&q=75&auto=format 800w, https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=1200&q=75&auto=format 1200w"
+                sizes="(min-width: 1024px) 40vw, 80vw"
                 alt="Live concert crowd"
+                width={800}
+                height={500}
                 className="w-full aspect-[16/10] object-cover"
                 loading="eager"
+                decoding="async"
+                fetchPriority="high"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
             </div>
