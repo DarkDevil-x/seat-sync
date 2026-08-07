@@ -52,13 +52,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const delResult = await BookingSeat.deleteMany({ seat_id: { $in: seatIds } });
       deletedBookingSeats = delResult.deletedCount ?? 0;
 
-      // For each affected booking, check if it still has any remaining seats
-      for (const bookingId of bookingIds) {
-        const remaining = await BookingSeat.countDocuments({ booking_id: new mongoose.Types.ObjectId(bookingId) });
-        if (remaining === 0) {
-          // No seats left → cancel the booking
-          await Booking.findByIdAndUpdate(bookingId, { $set: { status: 'cancelled' } });
-          cancelledBookings++;
+      if (bookingIds.length > 0) {
+        const bookingObjectIds = bookingIds.map((id) => new mongoose.Types.ObjectId(id));
+        // One aggregation tells us which affected bookings still have seats left,
+        // instead of one countDocuments query per booking (former N+1).
+        const stillHaveSeats = await BookingSeat.aggregate([
+          { $match: { booking_id: { $in: bookingObjectIds } } },
+          { $group: { _id: '$booking_id' } },
+        ]);
+        const withSeats = new Set(stillHaveSeats.map((r: any) => String(r._id)));
+        const toCancel = bookingObjectIds.filter((id) => !withSeats.has(String(id)));
+        if (toCancel.length > 0) {
+          // One bulk update cancels every now-empty booking at once.
+          const cancelResult = await Booking.updateMany(
+            { _id: { $in: toCancel } },
+            { $set: { status: 'cancelled' } }
+          );
+          cancelledBookings = cancelResult.modifiedCount ?? 0;
         }
       }
     } else if (forceStatus) {

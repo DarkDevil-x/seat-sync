@@ -169,7 +169,9 @@ export default function Header() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-              ) : (
+              ) : !isActive("/auth") && (
+                // On /auth the page already owns the sign-in action — a second
+                // "Sign In" button in the header is just noise.
                 <button
                   onClick={() => navigate("/auth")}
                   className="bg-primary text-primary-foreground rounded-full px-5 py-2 text-sm font-semibold shadow-sm hover:bg-primary/90 active:scale-95 transition-all duration-200"

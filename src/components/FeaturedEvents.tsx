@@ -1,9 +1,10 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EventCard } from "./EventCard";
 import { Button } from "./ui/button";
 import { Link } from "react-router-dom";
 import { Event } from "@/types";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 
 type ApiEvent = {
   _id?: string;
@@ -45,26 +46,84 @@ async function fetchFeatured(): Promise<Event[]> {
   return data.map(normalize);
 }
 
-const SectionHeader = () => (
-  <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-5 animate-fadeIn">
+/**
+ * A horizontal, scroll-snapping rail. Native CSS scroll-snap rather than the
+ * embla carousel in ui/: this section is on the eagerly-loaded home page, and
+ * scroll-snap costs no JS on that path. Touch swipe, trackpad and keyboard all
+ * come from the platform; the arrows are progressive enhancement on top.
+ *
+ * Cards keep a fixed width so the next one peeks past the edge — the cue that
+ * there is more to scroll. When everything already fits, the arrows and the
+ * edge fade stay hidden and it reads as a plain row.
+ */
+function useRail(count: number) {
+  const railRef = useRef<HTMLDivElement>(null);
+  const [atStart, setAtStart] = useState(true);
+  const [atEnd, setAtEnd] = useState(true);
+
+  const measure = useCallback(() => {
+    const el = railRef.current;
+    if (!el) return;
+    // 1px slack: fractional scroll offsets never land exactly on the bound.
+    setAtStart(el.scrollLeft <= 1);
+    setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1);
+  }, []);
+
+  useEffect(() => {
+    measure();
+    const el = railRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [measure, count]);
+
+  const scrollByPage = useCallback((dir: 1 | -1) => {
+    const el = railRef.current;
+    if (!el) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // 80% of a screenful keeps a card of overlap so nothing is skipped past.
+    el.scrollBy({ left: dir * (el.clientWidth * 0.8), behavior: reduced ? "auto" : "smooth" });
+  }, []);
+
+  // Everything already fits — no arrows, no fades, reads as a plain row.
+  const scrollable = !(atStart && atEnd);
+
+  return { railRef, measure, scrollByPage, atStart, atEnd, scrollable };
+}
+
+const ARROW_CLASS =
+  "h-9 w-9 rounded-full border border-border bg-card flex items-center justify-center text-foreground transition-colors hover:border-primary/50 hover:text-primary disabled:opacity-35 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+/** Fixed-width slide so cards stay a consistent size at any count. */
+const Slide = ({ children }: { children: React.ReactNode }) => (
+  <div className="snap-start shrink-0 w-[78vw] max-w-[300px] sm:w-[300px]">{children}</div>
+);
+
+type HeaderProps = {
+  /** Rendered only when the rail actually overflows. */
+  controls?: React.ReactNode;
+};
+
+const SectionHeader = ({ controls }: HeaderProps) => (
+  <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-5 animate-fadeIn">
     <div>
-      <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-3.5 py-1.5 text-xs font-semibold text-primary mb-4">
-        <Sparkles className="h-3 w-3" />
-        Handpicked for you
-      </div>
-      <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-        Featured <span className="text-primary">Events</span>
+      <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-foreground text-balance">
+        On sale now
       </h2>
-      <p className="text-muted-foreground mt-1.5 text-sm md:text-base">
-        Discover the hottest upcoming events near you
+      <p className="text-muted-foreground mt-2 text-sm md:text-base">
+        Seats are live — pick yours before they go.
       </p>
     </div>
-    <Button asChild variant="outline" className="rounded-xl font-semibold group">
-      <Link to="/events" className="flex items-center gap-2">
-        View All Events
-        <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
-      </Link>
-    </Button>
+    <div className="flex items-center gap-3">
+      {controls}
+      <Button asChild variant="outline" className="rounded-full font-semibold group">
+        <Link to="/events" className="flex items-center gap-2">
+          All events
+          <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+        </Link>
+      </Button>
+    </div>
   </div>
 );
 
@@ -80,25 +139,26 @@ export function FeaturedEvents() {
       <section className="py-16 md:py-24 bg-background relative overflow-hidden">
         <div className="container max-w-7xl mx-auto px-4 relative z-10">
           <SectionHeader />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <div className="flex gap-5 overflow-hidden -mx-4 px-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div
-                key={i}
-                className="flex flex-col rounded-2xl overflow-hidden border border-border bg-card"
-                style={{ minHeight: "380px" }}
-              >
-                <div className="shimmer flex-shrink-0" style={{ paddingTop: "56.25%", position: "relative" }}>
-                  <div className="absolute inset-0" />
-                </div>
-                <div className="flex flex-col flex-1 p-4 gap-3">
-                  <div className="shimmer h-4 w-3/4 rounded-lg" />
-                  <div className="shimmer h-3 w-1/2 rounded-lg" />
-                  <div className="shimmer h-3 w-2/3 rounded-lg" />
-                  <div className="pt-2 border-t border-border/60 mt-auto">
-                    <div className="shimmer h-9 w-full rounded-xl" />
+              <Slide key={i}>
+                <div
+                  className="flex flex-col rounded-2xl overflow-hidden border border-border bg-card"
+                  style={{ minHeight: "380px" }}
+                >
+                  <div className="shimmer flex-shrink-0" style={{ paddingTop: "56.25%", position: "relative" }}>
+                    <div className="absolute inset-0" />
+                  </div>
+                  <div className="flex flex-col flex-1 p-4 gap-3">
+                    <div className="shimmer h-4 w-3/4 rounded-lg" />
+                    <div className="shimmer h-3 w-1/2 rounded-lg" />
+                    <div className="shimmer h-3 w-2/3 rounded-lg" />
+                    <div className="pt-2 border-t border-border/60 mt-auto">
+                      <div className="shimmer h-9 w-full rounded-xl" />
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Slide>
             ))}
           </div>
         </div>
@@ -108,25 +168,67 @@ export function FeaturedEvents() {
 
   if (events.length === 0) return null;
 
+  return <FeaturedRail events={events} />;
+}
+
+/** Split out so the rail hook only runs once there are events to measure. */
+function FeaturedRail({ events }: { events: Event[] }) {
+  const { railRef, measure, scrollByPage, atStart, atEnd, scrollable } = useRail(events.length);
+
   return (
     <section className="py-16 md:py-24 bg-background relative overflow-hidden">
       <div className="container max-w-7xl mx-auto px-4 relative z-10">
-        <SectionHeader />
+        <SectionHeader
+          controls={
+            scrollable && (
+              <div className="hidden md:flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => scrollByPage(-1)}
+                  disabled={atStart}
+                  aria-label="Scroll to previous events"
+                  className={ARROW_CLASS}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollByPage(1)}
+                  disabled={atEnd}
+                  aria-label="Scroll to more events"
+                  className={ARROW_CLASS}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            )
+          }
+        />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {events.map((event, index) => (
-            <EventCard key={event.id} event={event} index={index} />
-          ))}
-        </div>
+        <div className="relative">
+          {/* Fade only on the side that still has content, and keep it narrow
+              so it signals "more" without washing out the card underneath. */}
+          {scrollable && !atStart && (
+            <div className="pointer-events-none absolute inset-y-0 -left-4 z-10 w-8 bg-gradient-to-r from-background to-transparent" />
+          )}
+          {scrollable && !atEnd && (
+            <div className="pointer-events-none absolute inset-y-0 -right-4 z-10 w-8 bg-gradient-to-l from-background to-transparent" />
+          )}
 
-        <div className="text-center mt-10">
-          <Link
-            to="/events"
-            className="inline-flex items-center gap-2 text-primary font-semibold text-sm hover:underline underline-offset-4 decoration-primary/40 transition-colors"
+          <div
+            ref={railRef}
+            onScroll={measure}
+            role="region"
+            aria-label="Events on sale"
+            tabIndex={0}
+            className="flex gap-5 overflow-x-auto scrollbar-none snap-x snap-mandatory -mx-4 px-4 pb-2 scroll-px-4 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
           >
-            Browse all events
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
+            {events.map((event, index) => (
+              <Slide key={event.id}>
+                <EventCard event={event} index={index} />
+              </Slide>
+            ))}
+          </div>
         </div>
       </div>
     </section>

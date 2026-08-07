@@ -13,7 +13,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     requireAdmin(req);
-    const { eventId, action, userId } = req.body as { eventId: string; action: 'toggle_bookings' | 'ban_user' | 'unban_user' | 'set_limit'; userId?: string; limit?: number };
+    const { eventId, action, userId } = req.body as {
+      eventId: string;
+      action: 'toggle_bookings' | 'ban_user' | 'unban_user' | 'set_limit' | 'toggle_featured' | 'toggle_spotlight';
+      userId?: string;
+      limit?: number;
+    };
+
+    /** Only two spotlight cards fit over the hero image. */
+    const SPOTLIGHT_LIMIT = 2;
 
     if (!eventId || !action) return res.status(400).json({ error: 'eventId and action are required' });
 
@@ -37,6 +45,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!event) return res.status(404).json({ error: 'Event not found' });
       const banned = (event as any).banned_users || [];
       update.banned_users = banned.filter((id: string) => id !== userId);
+    } else if (action === 'toggle_featured') {
+      const event = await Event.findById(eventId).lean();
+      if (!event) return res.status(404).json({ error: 'Event not found' });
+      update.is_featured = !(event as any).is_featured;
+    } else if (action === 'toggle_spotlight') {
+      const event = await Event.findById(eventId).lean();
+      if (!event) return res.status(404).json({ error: 'Event not found' });
+      const next = !(event as any).is_spotlight;
+      if (next) {
+        const current = await Event.countDocuments({ is_spotlight: true, _id: { $ne: eventId } });
+        if (current >= SPOTLIGHT_LIMIT) {
+          return res.status(409).json({
+            error: `Only ${SPOTLIGHT_LIMIT} events can be spotlighted. Remove one first.`,
+          });
+        }
+      }
+      update.is_spotlight = next;
     } else if (action === 'set_limit') {
       const { limit } = req.body as { limit?: number };
       if (limit === undefined) return res.status(400).json({ error: 'limit is required for set_limit action' });

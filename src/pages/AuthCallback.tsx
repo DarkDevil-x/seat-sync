@@ -1,4 +1,3 @@
-// ORPHANED - REVIEW: This component exists but has no route in App.tsx. Used by Google OAuth redirect flow — verify before deleting.
 /**
  * /auth/callback
  *

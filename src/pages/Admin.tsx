@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { HomepageCuration } from "@/components/admin/HomepageCuration";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -79,6 +80,7 @@ export default function AdminDashboard() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [exportLoading, setExportLoading] = useState<string | null>(null);
+  const [homepageToggleLoading, setHomepageToggleLoading] = useState<string | null>(null);
   
   // Event form
   const [showEventDialog, setShowEventDialog] = useState(false);
@@ -1104,20 +1106,39 @@ export default function AdminDashboard() {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="container mx-auto py-8 px-4 text-center">
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return null; // Will redirect in useEffect
-  }
+  /**
+   * Toggle whether an event appears in the home page's featured grid or as one
+   * of the two hero spotlight cards. The server owns the 2-card spotlight cap
+   * and returns 409 when it's reached, so the message comes straight from it.
+   */
+  const toggleHomepageFlag = async (eventId: string, flag: "featured" | "spotlight") => {
+    setHomepageToggleLoading(`${eventId}:${flag}`);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch("/api/admin/event-control", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ eventId, action: flag === "featured" ? "toggle_featured" : "toggle_spotlight" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not update the home page");
+      setEvents((prev) =>
+        prev.map((e) =>
+          e.id === eventId
+            ? { ...e, is_featured: data.is_featured, is_spotlight: data.is_spotlight }
+            : e
+        )
+      );
+    } catch (err: any) {
+      toast({ title: "Home page not updated", description: err.message, variant: "destructive" });
+    } finally {
+      setHomepageToggleLoading(null);
+    }
+  };
 
   // Memoised filters — recompute only when source data or its tab's query
-  // changes (used to re-run all three lists on every keystroke in any tab).
+  // changes. Must be declared BEFORE any conditional early return so the hook
+  // count stays consistent between renders (React error #310 otherwise).
   const filteredEvents = useMemo(() => {
     const q = eventSearch.trim().toLowerCase();
     if (!q) return events;
@@ -1163,6 +1184,18 @@ export default function AdminDashboard() {
     [stats?.revenueByEvent]
   );
 
+  if (loading) {
+    return (
+      <div className="container mx-auto py-8 px-4 text-center">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return null; // Will redirect in useEffect
+  }
+
   return (
     <div className="container mx-auto py-8 px-4">
       <h1 className="font-display text-3xl font-bold mb-2">Admin Dashboard</h1>
@@ -1172,6 +1205,7 @@ export default function AdminDashboard() {
         <TabsList className="mb-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="events">Events</TabsTrigger>
+          <TabsTrigger value="homepage">Home page</TabsTrigger>
           <TabsTrigger value="bookings">Bookings</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
         </TabsList>
@@ -1579,6 +1613,14 @@ export default function AdminDashboard() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="homepage">
+          <HomepageCuration
+            events={events}
+            onToggle={toggleHomepageFlag}
+            pendingId={homepageToggleLoading}
+          />
         </TabsContent>
 
         <TabsContent value="bookings">

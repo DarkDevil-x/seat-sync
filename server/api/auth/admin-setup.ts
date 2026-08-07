@@ -26,6 +26,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
+    // Normalize email the same way the schema stores it, so the existing-user
+    // check below can't be bypassed with mixed-case/whitespace input.
+    const normalizedEmail = email.toLowerCase().trim();
+
     // Check if admin already exists
     const existingAdmin = await User.findOne({ is_admin: true });
     if (existingAdmin) {
@@ -33,14 +37,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Check if user with this email exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(400).json({ error: 'User with this email already exists' });
     }
 
     // Create admin user
     const admin = await User.create({
-      email,
+      email: normalizedEmail,
       password,
       first_name: first_name || 'Admin',
       last_name: last_name || 'User',

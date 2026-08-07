@@ -5,34 +5,54 @@ import { FeaturesSection } from "@/components/FeaturesSection";
 import { TestimonialsSection } from "@/components/TestimonialsSection";
 import { NewsletterSection } from "@/components/NewsletterSection";
 import { Link } from "react-router-dom";
-import { Calendar, Music, Trophy, Mic2, Coffee, Palette } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
-const categories = [
-  { label: "Concerts", icon: Music, color: "from-violet-500 to-purple-600", bg: "bg-violet-500/10 dark:bg-violet-500/15", text: "text-violet-600 dark:text-violet-400" },
-  { label: "Sports", icon: Trophy, color: "from-amber-500 to-orange-600", bg: "bg-amber-500/10 dark:bg-amber-500/15", text: "text-amber-600 dark:text-amber-400" },
-  { label: "Theater", icon: Mic2, color: "from-pink-500 to-rose-600", bg: "bg-pink-500/10 dark:bg-pink-500/15", text: "text-pink-600 dark:text-pink-400" },
-  { label: "Conferences", icon: Calendar, color: "from-blue-500 to-cyan-600", bg: "bg-blue-500/10 dark:bg-blue-500/15", text: "text-blue-600 dark:text-blue-400" },
-  { label: "Festivals", icon: Coffee, color: "from-green-500 to-teal-600", bg: "bg-green-500/10 dark:bg-green-500/15", text: "text-green-600 dark:text-green-400" },
-  { label: "Exhibitions", icon: Palette, color: "from-indigo-500 to-purple-600", bg: "bg-indigo-500/10 dark:bg-indigo-500/15", text: "text-indigo-600 dark:text-indigo-400" },
-];
+type Facet = { category: string; count: number };
 
+async function fetchCategories(): Promise<Facet[]> {
+  const res = await fetch("/api/events?facets=true");
+  if (!res.ok) throw new Error("Failed to load categories");
+  return res.json();
+}
+
+/**
+ * Categories come from the events that actually exist, with real counts. The
+ * previous hardcoded list ("Concerts", "Conferences", "Festivals",
+ * "Exhibitions") didn't match the stored values ("Concert", "Conference") and
+ * invented two that were never used, so every pill led to an empty page.
+ */
 function CategoryBar() {
+  const { data: categories = [] } = useQuery({
+    queryKey: ["events", "categories"],
+    queryFn: fetchCategories,
+    staleTime: 5 * 60_000,
+  });
+
+  if (categories.length === 0) return null;
+
   return (
     <section className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-16 z-30">
       <div className="container max-w-7xl mx-auto px-4">
-        <div className="flex items-center gap-3 py-4 overflow-x-auto scrollbar-none">
-          <p className="text-xs font-semibold text-muted-foreground whitespace-nowrap uppercase tracking-wider mr-2">Browse by</p>
-          {categories.map(({ label, icon: Icon, bg, text }, i) => (
-            <div key={label} className="animate-fadeIn" style={{ animationDelay: `${i * 40}ms` }}>
-              <Link
-                to={`/events?category=${label.toLowerCase()}`}
-                className={`flex items-center gap-2 whitespace-nowrap rounded-full ${bg} ${text} px-5 py-2.5 text-sm font-semibold border border-current/10 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all duration-200`}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {label}
-              </Link>
-            </div>
+        <div className="flex items-center gap-2 py-4 overflow-x-auto scrollbar-none">
+          <h2 className="text-sm text-muted-foreground whitespace-nowrap mr-3">Browse by</h2>
+          {categories.map(({ category, count }) => (
+            <Link
+              key={category}
+              to={`/events?category=${encodeURIComponent(category)}`}
+              className="group flex items-baseline gap-2 whitespace-nowrap rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-200"
+            >
+              {category}
+              <span className="text-xs tabular-nums text-muted-foreground group-hover:text-primary transition-colors">
+                {count}
+              </span>
+            </Link>
           ))}
+          <Link
+            to="/events"
+            className="whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium text-primary hover:underline underline-offset-4"
+          >
+            All events
+          </Link>
         </div>
       </div>
     </section>

@@ -22,6 +22,46 @@ type SeatSelectionProps = {
   onSeatSelect: (selectedSeats: string[], totalPrice: number) => void;
 };
 
+/**
+ * One source of truth for seat appearance, shared by the seats and the legend
+ * so the two can't drift apart.
+ *
+ * The grammar is outline = empty, filled = occupied. Available seats are
+ * deliberately neutral: they're ~95% of the map, so colouring them coral (as
+ * before) left the selected seat with nothing to stand out against. Coral is
+ * spent only on the seats you picked.
+ */
+const SEAT_STATES = {
+  available: {
+    label: "Available",
+    className: "border-border bg-transparent text-foreground/70",
+    // Hover belongs on the seat only — the legend swatch isn't clickable.
+    interactive: "hover:border-primary hover:bg-primary/10 hover:text-foreground",
+  },
+  selected: {
+    label: "Selected",
+    className:
+      "border-primary bg-primary text-primary-foreground shadow-[0_0_0_3px_hsl(var(--primary)/0.25)]",
+  },
+  reserved: {
+    // Dashed reads as temporary — a hold expires, unlike a booking.
+    label: "On hold",
+    className:
+      "border-dashed border-amber-500/80 bg-amber-500/15 text-amber-700 dark:text-amber-400",
+  },
+  booked: {
+    // muted sits too close to the card colour in dark mode to read as
+    // unavailable; muted-foreground at low alpha separates in both themes.
+    label: "Booked",
+    className: "border-transparent bg-muted-foreground/20 text-muted-foreground/50",
+  },
+  yours: {
+    label: "Your booking",
+    className:
+      "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+  },
+} as const;
+
 const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
   const { user } = useAuth();
   const [seats, setSeats] = useState<Seat[]>([]);
@@ -371,23 +411,16 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
   const getSeatColor = (seat: Seat) => {
     const isSelected = selectedSeatIds.includes(seat.id);
     const isBookedByUser = userBookedSeats.includes(seat.id);
-    
-    let base = "w-7 h-7 sm:w-8 sm:h-8 rounded-[6px] flex items-center justify-center transition-all duration-200 text-[9px] sm:text-[10px] font-medium border flex-shrink-0 ";
-    
-    if (isBookedByUser) {
-      return base + "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 cursor-default shadow-[0_0_8px_rgba(16,185,129,0.25)]";     
-    }
-    if (isSelected) {
-      return base + "border-primary bg-primary text-primary-foreground scale-110 shadow-[0_0_12px_var(--primary)]";
-    }
-    if (seat.status === "booked") {
-      return base + "border-muted-foreground/20 bg-muted text-muted-foreground/50 cursor-not-allowed";
-    }
+
+    const base = "w-7 h-7 sm:w-8 sm:h-8 rounded-[6px] flex items-center justify-center transition-all duration-200 text-[9px] sm:text-[10px] font-medium border flex-shrink-0 ";
+
+    if (isBookedByUser) return base + SEAT_STATES.yours.className + " cursor-default";
+    if (isSelected)     return base + SEAT_STATES.selected.className + " scale-110";
+    if (seat.status === "booked") return base + SEAT_STATES.booked.className + " cursor-not-allowed";
     if (seat.status === "reserved" || seat.status === "held") {
-      return base + "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-500/50 cursor-not-allowed";
+      return base + SEAT_STATES.reserved.className + " cursor-not-allowed";
     }
-    // Available
-    return base + "border-primary/40 bg-transparent text-foreground/80 hover:border-primary hover:bg-primary/10";
+    return base + SEAT_STATES.available.className + " " + SEAT_STATES.available.interactive;
   };
 
   // ── HOOKS MUST COME BEFORE ANY CONDITIONAL RETURNS (Rules of Hooks) ──────────
@@ -547,27 +580,17 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
       </div>
       
       {/* Legend */}
-      <div className="flex flex-wrap gap-5 justify-center mt-8 pt-8 border-t border-border/50 relative z-10">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-[4px] border border-primary/40 bg-transparent"></div>
-          <span className="text-xs text-muted-foreground">Available</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-[4px] bg-primary shadow-[0_0_8px_var(--primary)]"></div>
-          <span className="text-xs text-muted-foreground">Selected</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-[4px] border border-amber-500/40 bg-amber-500/10"></div>
-          <span className="text-xs text-muted-foreground">Reserved</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-[4px] border border-muted-foreground/20 bg-muted"></div>
-          <span className="text-xs text-muted-foreground">Booked</span>
-        </div>
+      <div className="flex flex-wrap gap-x-6 gap-y-3 justify-center mt-8 pt-8 border-t border-border/50 relative z-10">
+        {(["available", "selected", "reserved", "booked"] as const).map((key) => (
+          <div key={key} className="flex items-center gap-2">
+            <div className={`w-4 h-4 rounded-[4px] border ${SEAT_STATES[key].className}`} />
+            <span className="text-xs text-muted-foreground">{SEAT_STATES[key].label}</span>
+          </div>
+        ))}
         {userBookedSeats.length > 0 && (
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-[4px] border border-emerald-500 bg-emerald-500/15"></div>
-            <span className="text-xs text-muted-foreground">Your Bookings</span>
+            <div className={`w-4 h-4 rounded-[4px] border ${SEAT_STATES.yours.className}`} />
+            <span className="text-xs text-muted-foreground">{SEAT_STATES.yours.label}</span>
           </div>
         )}
       </div>

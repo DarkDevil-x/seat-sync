@@ -71,23 +71,23 @@
 
   .dark {
     /* ── Dark Mode ──────────────────────────────────────────────────── */
-    --background: 210 26% 8%;        /* dark #0F1419 */
-    --foreground: 215 25% 92%;       /* warm white */
+    --background: 20 12% 8%;         /* warm near-black — was blue-grey #0F1419 */
+    --foreground: 20 10% 92%;        /* warm white */
 
-    --card: 226 30% 11%;             /* noticeably lighter than background */
-    --card-foreground: 215 25% 92%;
+    --card: 20 10% 12%;              /* noticeably lighter than background */
+    --card-foreground: 20 10% 92%;
 
-    --popover: 226 30% 11%;
-    --popover-foreground: 215 25% 92%;
+    --popover: 20 10% 12%;
+    --popover-foreground: 20 10% 92%;
 
     --primary: 5 100% 71%;           /* coral bright #FF7A6B */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 226 25% 16%;        /* visible secondary surfaces */
-    --secondary-foreground: 215 25% 88%;
+    --secondary: 20 9% 17%;          /* visible secondary surfaces */
+    --secondary-foreground: 20 10% 88%;
 
-    --muted: 226 25% 15%;
-    --muted-foreground: 215 18% 62%; /* much higher contrast than before */
+    --muted: 20 9% 16%;
+    --muted-foreground: 20 8% 64%;   /* keeps >=4.5:1 on card */
 
     --accent: 6 25% 18%;             /* dark coral bg #3A2522 */
     --accent-foreground: 5 100% 85%;
@@ -95,8 +95,8 @@
     --destructive: 0 72% 50%;        /* more vibrant destructive */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 226 25% 20%;           /* visible borders */
-    --input: 226 25% 16%;
+    --border: 20 9% 21%;             /* visible borders */
+    --input: 20 9% 17%;
     --ring: 5 100% 71%;
 
     --sidebar-background: 226 35% 6%;
@@ -112,11 +112,11 @@
     --card-shadow-hover: 0 20px 40px -12px rgba(255,122,107,0.4), 0 8px 16px -8px rgba(0,0,0,0.5);
 
     /* ── Semantic design tokens (dark) ───────────────────────── */
-    --bg-primary:    #0F1419;
-    --bg-secondary:  #1A1D23;
-    --bg-elevated:   #242830;
-    --bg-card:       #1E2128;
-    --bg-glass:      rgba(30,33,40,0.7);
+    --bg-primary:    #17120F;
+    --bg-secondary:  #221B17;
+    --bg-elevated:   #2E2620;
+    --bg-card:       #251E1A;
+    --bg-glass:      rgba(37,30,26,0.7);
     --accent-primary: #FF7A6B;
     --accent-hover:  #FF9488;
     --accent-muted:  #B85C52;
@@ -332,6 +332,17 @@
   .animate-pulse-glow   { animation: pulse-glow 2.5s ease-in-out infinite; }
   .animate-fadeIn       { animation: fadeIn 0.45s cubic-bezier(0.22,1,0.36,1) both; }
   .animate-fadeInScale  { animation: fadeInScale 0.4s cubic-bezier(0.22,1,0.36,1) both; }
+  /* Auth brand-panel seat map: seats pop in row by row, the taken seat is live */
+  .animate-seatIn       { animation: seatIn 0.5s cubic-bezier(0.22,1,0.36,1) both; }
+  .animate-seatPulse    { animation: seatPulse 2.6s ease-in-out infinite; }
+
+  /* Hide the scrollbar on horizontal scrollers that have their own affordances
+     (peeking cards, arrow buttons). Was referenced but never defined. */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
 
   /* ── Grid pattern background ─────────────────────────────────────── */
   .bg-grid-pattern {
@@ -479,6 +490,16 @@
 @keyframes fadeInScale {
   from { opacity: 0; transform: scale(0.96) translateY(8px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes seatIn {
+  from { opacity: 0; transform: scale(0.3); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes seatPulse {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.55), 0 0 12px hsl(var(--primary) / 0.6); }
+  50%      { box-shadow: 0 0 0 7px hsl(var(--primary) / 0),   0 0 12px hsl(var(--primary) / 0.6); }
 }
 
 /* ── Reduced motion ──────────────────────────────────────────────────── */

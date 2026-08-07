@@ -43,9 +43,6 @@ export function FeaturesSection() {
 
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-14 animate-fadeIn">
-          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-xs font-semibold text-primary mb-5">
-            How it works
-          </div>
           <h2 className="font-display text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
             From browse to{" "}
             <span className="text-primary">front row</span>
@@ -56,29 +53,26 @@ export function FeaturesSection() {
         </div>
 
         {/* Steps grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {STEPS.map((step, i) => (
             <div
               key={step.number}
-              className="relative flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg transition-all duration-200 animate-fadeIn"
+              className="group relative flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 overflow-hidden hover:-translate-y-1.5 hover:border-primary/30 hover:shadow-xl transition-all duration-250 animate-fadeIn"
               style={{ animationDelay: `${i * 80}ms` }}
             >
-              {/* Connector line (hidden on last) */}
-              {i < STEPS.length - 1 && (
-                <div className="hidden lg:block absolute top-[2.75rem] left-[calc(100%-0.5rem)] w-[calc(100%+1.5rem)] h-px bg-border z-0 pointer-events-none" />
-              )}
+              {/* Large background step number — visual anchor, not a connector */}
+              <span className="absolute top-3 right-4 text-[5.5rem] font-black leading-none select-none pointer-events-none text-foreground/[0.04] group-hover:text-foreground/[0.06] transition-colors duration-300">
+                {step.number}
+              </span>
 
-              {/* Step number + icon */}
-              <div className="flex items-center gap-3">
-                <div className={`h-11 w-11 rounded-xl border flex items-center justify-center flex-shrink-0 ${step.accent} ${step.border}`}>
-                  <step.icon className="h-5 w-5" />
-                </div>
-                <span className="text-3xl font-extrabold text-border/60 select-none">{step.number}</span>
+              {/* Icon */}
+              <div className={`relative z-10 h-12 w-12 rounded-2xl border flex items-center justify-center flex-shrink-0 ${step.accent} ${step.border}`}>
+                <step.icon className="h-5 w-5" />
               </div>
 
               {/* Text */}
-              <div>
-                <h3 className="font-bold text-foreground mb-1.5">{step.title}</h3>
+              <div className="relative z-10">
+                <h3 className="font-bold text-foreground mb-2">{step.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{step.description}</p>
               </div>
             </div>

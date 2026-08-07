@@ -14,6 +14,7 @@ import Header from "./components/Header";
 // so we can warm its chunk during browser idle time (see warmRoutes below).
 const lazyImports = {
   Auth: () => import("./pages/Auth"),
+  AuthCallback: () => import("./pages/AuthCallback"),
   NotFound: () => import("./pages/NotFound"),
   Events: () => import("./pages/Events"),
   EventDetail: () => import("./pages/EventDetail"),
@@ -28,6 +29,7 @@ const lazyImports = {
 };
 
 const Auth            = lazy(lazyImports.Auth);
+const AuthCallback    = lazy(lazyImports.AuthCallback);
 const NotFound        = lazy(lazyImports.NotFound);
 const Events          = lazy(lazyImports.Events);
 const EventDetail     = lazy(lazyImports.EventDetail);
@@ -104,6 +106,7 @@ const AppWithLayout = () => (
           <Route path="/events" element={<Events />} />
           <Route path="/events/:id" element={<EventDetail />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/bookings" element={<AdminBookings />} />

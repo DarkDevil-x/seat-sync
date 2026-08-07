@@ -10,6 +10,10 @@ export interface IEvent extends Document {
   image_url: string | null;
   is_free: boolean;
   is_published: boolean;
+  /** Shows in the "Featured events" grid on the home page. */
+  is_featured: boolean;
+  /** Shows as one of the two spotlight cards over the hero image. */
+  is_spotlight: boolean;
   created_by: string;
   max_seats_per_user: number;
   is_bookings_open: boolean;
@@ -30,6 +34,8 @@ const EventSchema = new Schema<IEvent>(
     image_url: { type: String, default: null },
     is_free: { type: Boolean, default: false },
     is_published: { type: Boolean, default: false },
+    is_featured: { type: Boolean, default: false },
+    is_spotlight: { type: Boolean, default: false },
     created_by: { type: String, required: true },
     max_seats_per_user: { type: Number, default: 10 },
     is_bookings_open: { type: Boolean, default: true },
@@ -43,5 +49,7 @@ const EventSchema = new Schema<IEvent>(
 
 EventSchema.index({ is_published: 1, date: 1 });
 EventSchema.index({ category: 1 });
+EventSchema.index({ is_featured: 1, is_published: 1, date: 1 });
+EventSchema.index({ is_spotlight: 1, is_published: 1, date: 1 });
 
 export default (mongoose.models.Event as mongoose.Model<IEvent>) || mongoose.model<IEvent>("Event", EventSchema);

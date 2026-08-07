@@ -1,5 +1,5 @@
 import { useState, useEffect, memo, useCallback, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Calendar, MapPin, Search, Zap, Heart, ArrowRight, X } from "lucide-react";
@@ -32,6 +32,14 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
 });
 const formatDate = (dateString: string) => dateFormatter.format(new Date(dateString));
+
+// Must return the SAME shape as the home page's category query — both use the
+// ["events","categories"] key, and React Query serves one cache to both.
+async function fetchCategories(): Promise<{ category: string; count: number }[]> {
+  const res = await fetch("/api/events?facets=true");
+  if (!res.ok) throw new Error(`Failed: ${res.status}`);
+  return res.json();
+}
 
 async function fetchEventsList(filter: string): Promise<Event[]> {
   const url = new URL("/api/events", window.location.origin);
@@ -255,7 +263,25 @@ FilterPill.displayName = "FilterPill";
 
 // ── Main Events Page ──────────────────────────────────────────────────────────
 export default function Events() {
-  const [filter, setFilter] = useState<string>("all");
+  // The category lives in the URL so links like /events?category=Concert from
+  // the home page land on a filtered list, and so a filtered list stays
+  // shareable and survives a reload.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filter = searchParams.get("category") || "all";
+  const setFilter = useCallback(
+    (next: string) => {
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          if (next === "all") params.delete("category");
+          else params.set("category", next);
+          return params;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
   const [searchRaw, setSearchRaw] = useState("");
   const search = useDebounce(searchRaw, 280);
   const [dateFilter, setDateFilter] = useState<"all" | "today" | "week" | "month">("all");
@@ -273,10 +299,22 @@ export default function Events() {
     placeholderData: (prev) => prev,
   });
 
-  const categories = useMemo(
-    () => Array.from(new Set(events.map((e) => e.category))),
-    [events]
-  );
+  // Categories come from a facet query, not from `events` — deriving them from
+  // the filtered result set collapsed the pill bar to the single active
+  // category, so there was no way back to a sibling category.
+  const { data: facets = [] } = useQuery({
+    queryKey: ["events", "categories"],
+    queryFn: fetchCategories,
+    staleTime: 5 * 60_000,
+  });
+  const categories = useMemo(() => facets.map((f) => f.category), [facets]);
+
+  // A ?category= that matches nothing (a stale link, a renamed category) would
+  // otherwise render an empty list with no active pill and no explanation.
+  const unknownCategory =
+    filter !== "all" &&
+    categories.length > 0 &&
+    !categories.some((c) => c.toLowerCase() === filter.toLowerCase());
 
   const toggleBookmark = useCallback((id: string) => {
     setBookmarks((prev) =>
@@ -396,7 +434,7 @@ export default function Events() {
             <FilterPill
               key={cat}
               label={cat === "all" ? "All Events" : cat}
-              active={filter === cat}
+              active={cat === "all" ? filter === "all" : filter.toLowerCase() === cat.toLowerCase()}
               onClick={() => setFilter(cat)}
               color="primary"
             />
@@ -452,12 +490,21 @@ export default function Events() {
         ) : events.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center animate-fadeIn">
             <div className="text-6xl mb-4">🎭</div>
-            <h2 className="text-2xl font-bold mb-2">No events yet</h2>
+            <h2 className="text-2xl font-bold mb-2">
+              {unknownCategory ? `Nothing in "${filter}"` : "No events yet"}
+            </h2>
             <p className="text-muted-foreground max-w-sm">
-              {filter !== "all"
-                ? "Try selecting a different category"
+              {unknownCategory
+                ? "That category has no upcoming events. Pick another above."
+                : filter !== "all"
+                ? "No upcoming events in this category yet. Pick another above."
                 : "Check back later for upcoming events"}
             </p>
+            {filter !== "all" && (
+              <Button variant="outline" className="mt-6 rounded-xl" onClick={() => setFilter("all")}>
+                Show all events
+              </Button>
+            )}
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center animate-fadeIn">

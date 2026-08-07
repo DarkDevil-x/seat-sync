@@ -1,32 +1,84 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Zap, Calendar, MapPin } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowRight, Calendar, MapPin } from "lucide-react";
 
-const TRUST_ITEMS = [
-  { label: "Live seat maps" },
-  { label: "Instant confirmation" },
-  { label: "Secure checkout" },
-];
+const TRUST_ITEMS = ["Live seat maps", "Instant confirmation", "Secure checkout"];
 
-const FLOATING_CARDS = [
-  {
-    title: "Summer Music Fest",
-    date: "Sat, Aug 10",
-    location: "Central Park, NY",
-    price: "$49",
-    badge: "Selling fast",
-    badgeColor: "bg-orange-500",
-  },
-  {
-    title: "Tech Conference 2025",
-    date: "Fri, Sep 5",
-    location: "Moscone Center, SF",
-    price: "Free",
-    badge: "Featured",
-    badgeColor: "bg-primary",
-  },
-];
+/** Used only when no event has an image of its own. */
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14";
+
+type SpotlightEvent = {
+  id: string;
+  title: string;
+  date: string;
+  location: string;
+  price: number;
+  is_free: boolean;
+  image_url: string | null;
+};
+
+async function fetchSpotlight(): Promise<SpotlightEvent[]> {
+  const res = await fetch("/api/events?spotlight=true&published=true");
+  if (!res.ok) throw new Error("Failed to load spotlight events");
+  const data = await res.json();
+  return (data as (SpotlightEvent & { _id?: string })[]).map((e) => ({
+    ...e,
+    id: String(e.id ?? e._id),
+  }));
+}
+
+const dateFmt = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+});
+
+const priceLabel = (e: SpotlightEvent) =>
+  e.is_free || !e.price ? "Free" : `$${Number(e.price).toFixed(2)}`;
+
+/** A real, clickable event card floating over the hero image. */
+function SpotlightCard({ event, className }: { event: SpotlightEvent; className: string }) {
+  return (
+    <Link
+      to={`/events/${event.id}`}
+      className={`group absolute w-60 rounded-2xl border border-border bg-background/90 backdrop-blur-xl p-4 shadow-xl transition-transform duration-300 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${className}`}
+    >
+      <p className="text-sm font-bold text-foreground leading-tight line-clamp-2 mb-2">
+        {event.title}
+      </p>
+      <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <Calendar className="h-3 w-3 text-primary/70 flex-shrink-0" />
+          {dateFmt.format(new Date(event.date))}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <MapPin className="h-3 w-3 text-primary/70 flex-shrink-0" />
+          <span className="truncate">{event.location}</span>
+        </span>
+      </div>
+      <div className="mt-3 flex items-center justify-between">
+        <span className="text-sm font-extrabold text-foreground">{priceLabel(event)}</span>
+        <span className="text-xs text-primary font-semibold flex items-center gap-1">
+          Book now
+          <ArrowRight className="h-3 w-3 transition-transform duration-200 group-hover:translate-x-0.5" />
+        </span>
+      </div>
+    </Link>
+  );
+}
 
 export function HeroSection() {
+  const { data: spotlight = [] } = useQuery({
+    queryKey: ["events", "spotlight"],
+    queryFn: fetchSpotlight,
+    staleTime: 60_000,
+  });
+
+  // The hero image is the lead event's own artwork when it has one — real
+  // product content beats a stock photo.
+  const heroSrc = spotlight.find((e) => e.image_url)?.image_url ?? FALLBACK_IMAGE;
+  const src = (w: number) => `${heroSrc}${heroSrc.includes("?") ? "&" : "?"}w=${w}&q=75&auto=format`;
+
   return (
     <section className="relative min-h-[92vh] flex items-center overflow-hidden bg-background">
       {/* ── Ambient background ────────────────────────────────── */}
@@ -37,21 +89,11 @@ export function HeroSection() {
       <div className="container max-w-7xl mx-auto px-4 py-24 md:py-32 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-16 items-center">
 
-          {/* ── Left: Copy (60%) ─────────────────────────────────── */}
+          {/* ── Left: Copy ───────────────────────────────────────── */}
           <div className="flex flex-col gap-7 lg:col-span-3">
-            {/* Eyebrow badge */}
-            <div
-              className="inline-flex items-center gap-2 self-start rounded-full border border-primary/25 bg-primary/8 px-4 py-1.5 text-xs font-semibold text-primary animate-fadeIn"
-              style={{ animationDelay: "0ms" }}
-            >
-              <Zap className="h-3 w-3" />
-              Real-time seat selection — live updates
-            </div>
-
-            {/* Headline */}
             <h1
-              className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.08] animate-fadeIn"
-              style={{ animationDelay: "60ms" }}
+              className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.08] text-balance animate-fadeIn"
+              style={{ animationDelay: "0ms" }}
             >
               Book events{" "}
               <span className="text-primary">you'll love,</span>
@@ -59,18 +101,17 @@ export function HeroSection() {
               seats you'll remember.
             </h1>
 
-            {/* Subtext */}
             <p
               className="text-lg text-muted-foreground max-w-lg leading-relaxed animate-fadeIn"
-              style={{ animationDelay: "120ms" }}
+              style={{ animationDelay: "60ms" }}
             >
-              Discover concerts, sports, theatre and more. Reserve your spot in seconds with live seat availability and instant ticket delivery.
+              Discover concerts, sports, theatre and more. Pick your exact seat on a live map and
+              your ticket lands in seconds.
             </p>
 
-            {/* CTAs */}
             <div
               className="flex flex-col sm:flex-row gap-3 animate-fadeIn"
-              style={{ animationDelay: "180ms" }}
+              style={{ animationDelay: "120ms" }}
             >
               <Link
                 to="/events"
@@ -81,126 +122,58 @@ export function HeroSection() {
               </Link>
               <Link
                 to="/auth"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 backdrop-blur-sm px-6 py-3 text-sm font-semibold text-foreground hover:bg-muted/60 hover:border-primary/30 active:scale-95 transition-all duration-200"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-background/70 backdrop-blur-sm px-6 py-3 text-sm font-semibold text-foreground hover:bg-muted/60 hover:border-primary/30 active:scale-95 transition-all duration-200"
               >
                 Create free account
               </Link>
             </div>
 
-            {/* Trust badges */}
             <div
-              className="flex flex-wrap items-center gap-3 animate-fadeIn"
-              style={{ animationDelay: "240ms" }}
+              className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 animate-fadeIn"
+              style={{ animationDelay: "180ms" }}
             >
-              {TRUST_ITEMS.map(({ label }) => (
-                <span
-                  key={label}
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+              {TRUST_ITEMS.map((label) => (
+                <span key={label} className="text-sm text-muted-foreground">
                   {label}
                 </span>
               ))}
             </div>
-
-            {/* Social proof */}
-            <div
-              className="flex items-center gap-3 animate-fadeIn"
-              style={{ animationDelay: "280ms" }}
-            >
-              <div className="flex -space-x-2">
-                {["7", "12", "25", "44"].map((seed) => (
-                  <div
-                    key={seed}
-                    className="h-8 w-8 rounded-full border-2 border-background bg-gradient-to-br from-primary/40 to-primary/10 flex items-center justify-center text-[10px] font-bold text-primary"
-                  >
-                    {seed[0]}
-                  </div>
-                ))}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">1,200+</span> tickets booked this month
-              </p>
-            </div>
-
-            {/* Stats row */}
-            <div
-              className="grid grid-cols-3 gap-4 pt-4 border-t border-border/50 animate-fadeIn"
-              style={{ animationDelay: "320ms" }}
-            >
-              {[
-                { value: "500+", label: "Events" },
-                { value: "50K+", label: "Tickets Sold" },
-                { value: "98%", label: "Satisfaction" },
-              ].map(({ value, label }) => (
-                <div key={label}>
-                  <p className="font-display font-bold text-xl text-foreground">{value}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-                </div>
-              ))}
-            </div>
           </div>
 
-          {/* ── Right: Visual (40%) ──────────────────────────────── */}
-          <div className="relative hidden lg:flex flex-col gap-4 items-end animate-fadeInScale lg:col-span-2" style={{ animationDelay: "100ms" }}>
-            {/* Main image — LCP candidate, prioritised + responsive srcset */}
+          {/* ── Right: Visual ────────────────────────────────────── */}
+          <div
+            className="relative hidden lg:flex flex-col gap-4 items-end animate-fadeInScale lg:col-span-2"
+            style={{ animationDelay: "100ms" }}
+          >
             <div className="relative w-full rounded-2xl overflow-hidden border border-border shadow-2xl">
               <img
-                src="https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&q=75&auto=format"
-                srcSet="https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=480&q=75&auto=format 480w, https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&q=75&auto=format 800w, https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=1200&q=75&auto=format 1200w"
+                src={src(800)}
+                srcSet={`${src(480)} 480w, ${src(800)} 800w, ${src(1200)} 1200w`}
                 sizes="(min-width: 1024px) 40vw, 80vw"
-                alt="Live concert crowd"
+                alt=""
                 width={800}
                 height={500}
                 className="w-full aspect-[16/10] object-cover"
                 loading="eager"
                 decoding="async"
-                fetchPriority="high"
+                // React 18 doesn't map the camelCase prop; the lowercase
+                // attribute is what actually reaches the DOM.
+                {...{ fetchpriority: "high" }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
             </div>
 
-            {/* Floating card 1 */}
-            <div
-              className="absolute -left-8 top-8 w-64 rounded-2xl border border-border bg-background/90 backdrop-blur-xl p-4 shadow-xl animate-float"
-              style={{ animationDelay: "0.3s" }}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <p className="text-sm font-bold text-foreground leading-tight">{FLOATING_CARDS[0].title}</p>
-                <span className={`text-[10px] font-bold text-white rounded-full px-2 py-0.5 ${FLOATING_CARDS[0].badgeColor}`}>
-                  {FLOATING_CARDS[0].badge}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1"><Calendar className="h-3 w-3 text-primary/60" />{FLOATING_CARDS[0].date}</span>
-                <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-primary/60" />{FLOATING_CARDS[0].location}</span>
-              </div>
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-sm font-extrabold text-foreground">{FLOATING_CARDS[0].price}</span>
-                <span className="text-xs text-primary font-semibold">Book now →</span>
-              </div>
-            </div>
-
-            {/* Floating card 2 */}
-            <div
-              className="absolute -right-6 bottom-12 w-60 rounded-2xl border border-border bg-background/90 backdrop-blur-xl p-4 shadow-xl animate-float"
-              style={{ animationDelay: "0.8s" }}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <p className="text-sm font-bold text-foreground leading-tight">{FLOATING_CARDS[1].title}</p>
-                <span className={`text-[10px] font-bold text-white rounded-full px-2 py-0.5 ${FLOATING_CARDS[1].badgeColor}`}>
-                  {FLOATING_CARDS[1].badge}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1"><Calendar className="h-3 w-3 text-primary/60" />{FLOATING_CARDS[1].date}</span>
-                <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-primary/60" />{FLOATING_CARDS[1].location}</span>
-              </div>
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-sm font-extrabold text-foreground">{FLOATING_CARDS[1].price}</span>
-                <span className="text-xs text-primary font-semibold">Book now →</span>
-              </div>
-            </div>
+            {/* Real events, chosen in Admin → Home page. Nothing renders until
+                they load, rather than showing invented placeholders. */}
+            {spotlight[0] && (
+              <SpotlightCard event={spotlight[0]} className="-left-8 top-8 animate-float" />
+            )}
+            {spotlight[1] && (
+              <SpotlightCard
+                event={spotlight[1]}
+                className="-right-6 bottom-12 animate-float [animation-delay:0.8s]"
+              />
+            )}
           </div>
 
         </div>

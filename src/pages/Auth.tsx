@@ -1,9 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -49,7 +47,7 @@ function PasswordInput({ id, placeholder, value, onChange, required, minLength, 
       />
       <button
         type="button"
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
         onClick={onToggle}
         tabIndex={-1}
         aria-label={showPassword ? "Hide password" : "Show password"}
@@ -68,7 +66,6 @@ function friendlyError(msg: string): string {
   return msg;
 }
 
-/** Shared Google icon */
 const GoogleIcon = () => (
   <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24" aria-hidden="true">
     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -78,23 +75,22 @@ const GoogleIcon = () => (
   </svg>
 );
 
-/** Divider */
+/** Ticket perforation — a dashed tear line across the form. */
 const OrDivider = () => (
-  <div className="relative w-full">
-    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-    <div className="relative flex justify-center text-xs uppercase">
-      <span className="bg-card px-2 text-muted-foreground">or continue with</span>
-    </div>
+  <div className="relative h-px" aria-hidden="true">
+    <div className="absolute inset-x-0 top-0 border-t border-dashed border-border" />
+    <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 bg-card px-3 text-[11px] uppercase tracking-wider text-muted-foreground">
+      or continue with
+    </span>
   </div>
 );
 
-/** Social buttons (shared by both tabs) */
 const SocialButtons = () => (
   <div className="grid grid-cols-2 gap-3 w-full">
     <Button
       type="button"
       variant="outline"
-      className="w-full"
+      className="w-full h-10 rounded-xl"
       onClick={() => { window.location.href = "/api/auth/google"; }}
       id="btn-google-signin"
     >
@@ -104,7 +100,7 @@ const SocialButtons = () => (
     <Button
       type="button"
       variant="outline"
-      className="w-full"
+      className="w-full h-10 rounded-xl"
       onClick={() => toast({ title: "Coming soon", description: "GitHub login will be available soon." })}
       id="btn-github-signin"
     >
@@ -113,9 +109,86 @@ const SocialButtons = () => (
   </div>
 );
 
+const TABS = [
+  { id: "signin", label: "Sign In" },
+  { id: "signup", label: "Sign Up" },
+] as const;
+
+/**
+ * The brand panel is the product's own seat map rather than the usual
+ * feature-bullets-and-stats column: "." open, "x" taken, "@" yours.
+ * 12 seats per row with a centre aisle, drawn raked toward the stage.
+ */
+const HOUSE_PLAN = [
+  "..x....x....",
+  ".x...x....x.",
+  "..x.....x...",
+  "...x..@...x.",
+  ".x....x...x.",
+  "..x..x.....x",
+];
+
+// Deliberately near-monochrome: coral is spent on exactly one seat, so "yours"
+// is the only thing the eye lands on.
+const SEAT_STYLE: Record<string, string> = {
+  ".": "border border-white/25 bg-white/[0.04]",
+  x: "border border-white/[0.09] bg-white/[0.05]",
+  "@": "border border-primary bg-primary",
+};
+
+const LEGEND = [
+  { key: ".", label: "Open" },
+  { key: "x", label: "Taken" },
+  { key: "@", label: "Yours" },
+];
+
+const SeatMap = () => (
+  <div className="[perspective:760px] w-fit">
+    <div
+      className="flex flex-col items-center gap-2.5"
+      style={{ transform: "rotateX(34deg)" }}
+    >
+      {/* Stage — the thing every seat is angled toward */}
+      <div className="relative w-[70%] mb-4">
+        <div className="h-[3px] rounded-full bg-gradient-to-r from-transparent via-primary to-transparent" />
+        <div className="absolute inset-x-0 -top-6 h-12 bg-primary/40 blur-[26px] rounded-full" />
+        <p className="mt-3 text-center font-mono text-[11px] uppercase tracking-[0.4em] text-primary">
+          Stage
+        </p>
+      </div>
+
+      {HOUSE_PLAN.map((row, r) => (
+        // Rows nearer the viewer sit brighter — the depth cue the rake alone
+        // doesn't give. Set on the row, since the seats' own animation would
+        // override an inline opacity.
+        <div
+          key={r}
+          className="flex gap-[7px]"
+          style={{ opacity: 0.72 + r * 0.056 }}
+        >
+          {row.split("").map((seat, c) => (
+            <span
+              key={c}
+              className={`h-[22px] w-[22px] rounded-[5px] animate-seatIn ${SEAT_STYLE[seat]} ${c === 6 ? "ml-4" : ""}`}
+              style={{ animationDelay: `${140 + r * 70 + c * 14}ms` }}
+            >
+              {/* The pulse lives on its own layer so it doesn't fight the
+                  entrance animation for the `animation` shorthand. */}
+              {seat === "@" && (
+                <span className="block h-full w-full rounded-[5px] animate-seatPulse" />
+              )}
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
 export default function Auth() {
   const navigate = useNavigate();
   const { user, loginWithToken } = useAuth();
+  const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -130,7 +203,6 @@ export default function Auth() {
 
   useEffect(() => {
     if (user) navigate("/");
-
     const checkAdminExists = async () => {
       try {
         const response = await fetch("/api/auth/check-admin");
@@ -194,156 +266,238 @@ export default function Auth() {
 
   const togglePassword = () => setShowPassword((v) => !v);
 
-  return (
-    <div className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-16 bg-background overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 bg-grid-pattern opacity-40 dark:opacity-50 pointer-events-none" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-primary/8 blur-[100px] pointer-events-none" />
+  // Radix Tabs was dropped for a custom switcher, so re-implement the arrow-key
+  // navigation it used to provide.
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const next = activeTab === "signin" ? "signup" : "signin";
+    setActiveTab(next);
+    tabRefs.current[next]?.focus();
+  };
 
-      <div className="relative z-10 w-full max-w-md animate-fadeInScale">
-        {/* Brand header */}
-        <div className="flex flex-col items-center gap-3 mb-8">
-          <Link to="/" className="flex items-center gap-0.5 group">
-            <span className="font-display font-bold text-2xl tracking-tight text-foreground transition-colors group-hover:text-primary">SeatSync</span>
-            <span className="text-primary font-bold text-3xl leading-none">.</span>
-          </Link>
-          <p className="text-sm text-muted-foreground">Book events you'll love</p>
+  return (
+    // The app shell renders this inside <main className="pt-20"> under a fixed
+    // 5rem header, so min-h-screen would overflow the viewport by exactly that
+    // much and clip the brand panel. Subtract it.
+    <div className="flex min-h-[calc(100vh-5rem)] items-center justify-center bg-background px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+      {/* Both halves live inside ONE rounded surface so the page reads as a
+          single object rather than a dark slab butted against a light one.
+          Below lg the brand panel is hidden, so the card hugs the form instead
+          of stretching to full height and leaving dead space under a short
+          sign-in form — `self-center lg:self-stretch`. */}
+      <div className="flex w-full max-w-6xl self-center lg:self-stretch overflow-hidden rounded-3xl border border-border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_60px_-24px_rgba(0,0,0,0.22)]">
+
+      {/* ── Left: Brand Panel — the house before the show ──────────────── */}
+      {/* No logo here — the site header already shows it right above. */}
+      <div className="hidden lg:flex lg:w-[46%] flex-col justify-center gap-8 bg-gradient-to-b from-[#20120F] to-[#120C0B] relative overflow-hidden px-12 xl:px-14 py-8">
+        {/* Warm house light spilling from the stage — kept low so the seat map
+            stays legible rather than drowning in haze. */}
+        <div className="absolute top-[4%] left-1/2 -translate-x-1/2 w-[560px] h-[280px] bg-primary/[0.14] rounded-full blur-[130px] pointer-events-none" />
+        <div className="absolute inset-0 bg-grid-pattern opacity-[0.04] pointer-events-none" />
+
+        <div className="relative z-10">
+          <SeatMap />
         </div>
 
-      <Card className="w-full shadow-2xl border border-border/60 bg-background/95 backdrop-blur-xl">
-        <Tabs defaultValue="signin" className="w-full">
-          <TabsList className="grid grid-cols-2 mx-4 mt-4 w-[calc(100%-2rem)]">
-            <TabsTrigger value="signin">Sign In</TabsTrigger>
-            <TabsTrigger value="signup">Sign Up</TabsTrigger>
-          </TabsList>
+        <div className="relative z-10">
+          <p className="font-display text-[2.4rem] xl:text-[2.7rem] font-bold text-white leading-[1.05] tracking-tight">
+            Your seat is<br />
+            <span className="text-primary">waiting.</span>
+          </p>
+          <p className="text-white/55 text-[15px] leading-relaxed max-w-[320px] mt-4">
+            See every seat in the house as it fills. Pick the one you actually want — it's held the moment you tap it.
+          </p>
 
-          {/* ─── Sign In ─── */}
-          <TabsContent value="signin">
-            <form onSubmit={handleSignIn}>
-              <CardHeader>
-                <CardTitle>Welcome back</CardTitle>
-                <CardDescription>Sign in to your SeatSync account</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="you@example.com"
-                    value={email} onChange={(e) => setEmail(e.target.value)} required />
+          {/* Legend — the same vocabulary the real booking screen uses */}
+          <div className="flex items-center gap-5 mt-7 pt-6 border-t border-white/10">
+            {LEGEND.map(({ key, label }) => (
+              <div key={label} className="flex items-center gap-2">
+                <span className={`h-3.5 w-3.5 rounded-[4px] ${SEAT_STYLE[key]}`} />
+                <span className="text-xs text-white/50">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Right: Form Panel ──────────────────────────────────────────── */}
+      <div className="flex-1 flex items-center justify-center px-6 py-8 sm:px-12 relative">
+        <div className="absolute top-0 right-0 w-[420px] h-[380px] bg-primary/[0.06] blur-[110px] pointer-events-none rounded-full" />
+
+        <div className="relative z-10 w-full max-w-[400px] animate-fadeInScale">
+          <div>
+
+            {/* Welcome headline */}
+            <div className="mb-6">
+              <h1 className="font-display text-[1.7rem] font-bold text-foreground leading-tight tracking-tight">
+                {activeTab === "signin" ? "Welcome back" : "Create your account"}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1.5">
+                {activeTab === "signin"
+                  ? "Sign in to pick up where you left off."
+                  : "It takes about thirty seconds."}
+              </p>
+            </div>
+
+          {/* Tab switcher */}
+          <div
+            role="tablist"
+            aria-label="Authentication"
+            onKeyDown={handleTabKeyDown}
+            className="flex gap-1 bg-muted border border-border rounded-xl p-1 mb-6"
+          >
+            {TABS.map(({ id, label }) => (
+              <button
+                key={id}
+                ref={(el) => { tabRefs.current[id] = el; }}
+                role="tab"
+                type="button"
+                id={`tab-${id}`}
+                aria-selected={activeTab === id}
+                aria-controls={`panel-${id}`}
+                tabIndex={activeTab === id ? 0 : -1}
+                onClick={() => setActiveTab(id)}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-card ${
+                  activeTab === id
+                    ? "bg-card text-foreground shadow-sm ring-1 ring-border"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Sign In Form ── */}
+          {activeTab === "signin" && (
+            <form onSubmit={handleSignIn} className="space-y-4 animate-fadeIn"
+              role="tabpanel" id="panel-signin" aria-labelledby="tab-signin">
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" placeholder="you@example.com"
+                  value={email} onChange={(e) => setEmail(e.target.value)} required />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <button type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => toast({ title: "Reset link sent", description: "Check your email (feature coming soon)." })}>
+                    Forgot password?
+                  </button>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Password</Label>
-                    <button type="button"
-                      className="text-xs text-primary hover:underline"
-                      onClick={() => toast({ title: "Reset link sent", description: "Check your email (feature coming soon)." })}>
-                      Forgot password?
-                    </button>
-                  </div>
-                  <PasswordInput id="password" placeholder="Enter your password"
-                    value={password} onChange={(e) => setPassword(e.target.value)} required
-                    showPassword={showPassword} onToggle={togglePassword} />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox id="rememberMe" checked={rememberMe}
-                    onCheckedChange={(v) => setRememberMe(Boolean(v))} />
-                  <Label htmlFor="rememberMe" className="text-sm font-normal cursor-pointer">
-                    Remember me for 30 days
-                  </Label>
-                </div>
-              </CardContent>
-              <CardFooter className="flex flex-col gap-4">
-                <Button type="submit" className="w-full" disabled={loading} id="btn-signin">
-                  {loading ? "Signing in..." : "Sign In"}
-                </Button>
+                <PasswordInput id="password" placeholder="Enter your password"
+                  value={password} onChange={(e) => setPassword(e.target.value)} required
+                  showPassword={showPassword} onToggle={togglePassword} />
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="rememberMe" checked={rememberMe}
+                  onCheckedChange={(v) => setRememberMe(Boolean(v))}
+                  className="border-border data-[state=checked]:border-primary" />
+                <Label htmlFor="rememberMe" className="text-sm font-normal cursor-pointer">
+                  Remember me for 30 days
+                </Label>
+              </div>
+              <Button type="submit" className="w-full h-11 rounded-xl font-semibold text-sm" disabled={loading} id="btn-signin">
+                {loading ? "Signing in…" : "Sign In"}
+              </Button>
+              <div className="pt-2">
                 <OrDivider />
-                <SocialButtons />
-                {!adminExists && (
-                  <div className="text-center w-full">
-                    <Link to="/admin-setup" className="text-sm text-primary hover:underline">
-                      Set up admin account
-                    </Link>
+                <div className="mt-6">
+                  <SocialButtons />
+                </div>
+              </div>
+              {!adminExists && (
+                <div className="text-center">
+                  <Link to="/admin-setup" className="text-sm text-primary hover:underline">
+                    Set up admin account
+                  </Link>
+                </div>
+              )}
+            </form>
+          )}
+
+          {/* ── Sign Up Form ── */}
+          {activeTab === "signup" && (
+            <form onSubmit={handleSignUp} className="space-y-4 animate-fadeIn"
+              role="tabpanel" id="panel-signup" aria-labelledby="tab-signup">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input id="firstName" placeholder="John"
+                    value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input id="lastName" placeholder="Doe"
+                    value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="emailSignup">Email</Label>
+                <Input id="emailSignup" type="email" placeholder="you@example.com"
+                  value={email} onChange={(e) => setEmail(e.target.value)} required />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="passwordSignup">Password</Label>
+                <PasswordInput id="passwordSignup" placeholder="Min 6 characters"
+                  value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6}
+                  showPassword={showPassword} onToggle={togglePassword} />
+                {password.length > 0 && (
+                  <div className="space-y-1 pt-0.5">
+                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all duration-300 ${strength.color}`}
+                        style={{ width: strength.width }} />
+                    </div>
+                    <p className={`text-xs font-medium ${
+                      strength.label === "Weak" ? "text-red-500" :
+                      strength.label === "Fair" ? "text-yellow-500" :
+                      strength.label === "Good" ? "text-blue-500" : "text-green-500"
+                    }`}>{strength.label} password</p>
                   </div>
                 )}
-              </CardFooter>
-            </form>
-          </TabsContent>
-
-          {/* ─── Sign Up ─── */}
-          <TabsContent value="signup">
-            <form onSubmit={handleSignUp}>
-              <CardHeader>
-                <CardTitle>Create account</CardTitle>
-                <CardDescription>Join SeatSync and start booking events</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" placeholder="John"
-                      value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" placeholder="Doe"
-                      value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="emailSignup">Email</Label>
-                  <Input id="emailSignup" type="email" placeholder="you@example.com"
-                    value={email} onChange={(e) => setEmail(e.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="passwordSignup">Password</Label>
-                  <PasswordInput id="passwordSignup" placeholder="Min 6 characters"
-                    value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6}
-                    showPassword={showPassword} onToggle={togglePassword} />
-                  {password.length > 0 && (
-                    <div className="space-y-1">
-                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all duration-300 ${strength.color}`}
-                          style={{ width: strength.width }} />
-                      </div>
-                      <p className={`text-xs font-medium ${
-                        strength.label === "Weak" ? "text-red-500" :
-                        strength.label === "Fair" ? "text-yellow-500" :
-                        strength.label === "Good" ? "text-blue-500" : "text-green-500"
-                      }`}>{strength.label} password</p>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox id="rememberMeUp" checked={rememberMe}
-                    onCheckedChange={(v) => setRememberMe(Boolean(v))} />
-                  <Label htmlFor="rememberMeUp" className="text-sm font-normal cursor-pointer">
-                    Remember me for 30 days
-                  </Label>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Checkbox id="terms" checked={agreedToTerms}
-                    onCheckedChange={(v) => setAgreedToTerms(Boolean(v))} className="mt-0.5" />
-                  <Label htmlFor="terms" className="text-sm font-normal cursor-pointer leading-snug">
-                    I agree to the{" "}
-                    <button type="button" className="text-primary hover:underline" onClick={() => toast({ title: "Terms & Conditions", description: "Available at /terms (coming soon)." })}>
-                      Terms of Service
-                    </button>{" "}&{" "}
-                    <button type="button" className="text-primary hover:underline" onClick={() => toast({ title: "Privacy Policy", description: "Available at /privacy (coming soon)." })}>
-                      Privacy Policy
-                    </button>
-                  </Label>
-                </div>
-              </CardContent>
-              <CardFooter className="flex flex-col gap-4">
-                <Button type="submit" className="w-full" disabled={loading || !agreedToTerms} id="btn-signup">
-                  {loading ? "Creating Account..." : "Create Account"}
-                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="rememberMeUp" checked={rememberMe}
+                  onCheckedChange={(v) => setRememberMe(Boolean(v))}
+                  className="border-border data-[state=checked]:border-primary" />
+                <Label htmlFor="rememberMeUp" className="text-sm font-normal cursor-pointer">
+                  Remember me for 30 days
+                </Label>
+              </div>
+              <div className="flex items-start gap-2">
+                <Checkbox id="terms" checked={agreedToTerms}
+                  onCheckedChange={(v) => setAgreedToTerms(Boolean(v))}
+                  className="mt-0.5 border-border data-[state=checked]:border-primary" />
+                <Label htmlFor="terms" className="text-sm font-normal cursor-pointer leading-snug">
+                  I agree to the{" "}
+                  <button type="button" className="text-primary hover:underline"
+                    onClick={() => toast({ title: "Terms & Conditions", description: "Available at /terms (coming soon)." })}>
+                    Terms of Service
+                  </button>{" "}&{" "}
+                  <button type="button" className="text-primary hover:underline"
+                    onClick={() => toast({ title: "Privacy Policy", description: "Available at /privacy (coming soon)." })}>
+                    Privacy Policy
+                  </button>
+                </Label>
+              </div>
+              <Button type="submit" className="w-full h-11 rounded-xl font-semibold text-sm"
+                disabled={loading || !agreedToTerms} id="btn-signup">
+                {loading ? "Creating Account…" : "Create Account"}
+              </Button>
+              <div className="pt-2">
                 <OrDivider />
-                <SocialButtons />
-              </CardFooter>
+                <div className="mt-6">
+                  <SocialButtons />
+                </div>
+              </div>
             </form>
-          </TabsContent>
-        </Tabs>
-      </Card>
+          )}
+          </div>
+        </div>
+      </div>
       </div>
     </div>
   );

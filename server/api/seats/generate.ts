@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import dbConnect from '../../db.js';
 import Booking from '../../models/Booking.js';
 import BookingSeat from '../../models/BookingSeat.js';
+import Event from '../../models/Event.js';
 import Seat from '../../models/Seat.js';
 import { setCorsHeaders } from '../_utils/cors.js';
 import { requireAdmin } from '../_utils/auth.js';
@@ -55,6 +56,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return res.status(400).json({ error: 'Invalid eventId' });
+    }
+
+    // Make sure the event actually exists before we delete/cancel anything or
+    // insert seats — a stale id would otherwise create orphaned seats.
+    const eventExists = await Event.exists({ _id: eventId });
+    if (!eventExists) {
+      return res.status(404).json({ error: 'Event not found' });
     }
 
     // Regenerating seats invalidates any bookings tied to them. Old code
