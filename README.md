@@ -8,6 +8,37 @@ https://seat-sync-five.vercel.app/
 
 ---
 
+## 📸 Screenshots
+
+> Captured from the live deployment at [seat-sync-five.vercel.app](https://seat-sync-five.vercel.app/).
+
+### Home
+
+|                    Light                     |                       Dark                        |
+| :------------------------------------------: | :-----------------------------------------------: |
+| ![Home page, light mode](docs/screenshots/home.png) | ![Home page, dark mode](docs/screenshots/home-dark.png) |
+
+### Browse Events
+
+Search, category facets, and date filters over every published event.
+
+![Events listing page](docs/screenshots/events.png)
+
+### Interactive Seat Selection
+
+Live seat map with front / back / balcony tiers, zoom controls, and real-time
+availability — available, selected, on hold, and booked.
+
+![Event detail page with the interactive seat map](docs/screenshots/seat-selection.png)
+
+### Authentication
+
+Email and password, Google OAuth, or GitHub — with the product's own seat map as the brand panel.
+
+![Sign in page](docs/screenshots/auth.png)
+
+---
+
 ## 📖 Overview
 
 SeatSync is designed to simplify event management and ticket booking for organizers and attendees. The platform offers an intuitive interface for selecting seats, purchasing tickets, and managing events while ensuring scalability, security, and high performance.
@@ -130,8 +161,35 @@ MONGODB_URI=your_mongodb_uri
 JWT_SECRET=your_jwt_secret
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
-APP_URL=http://localhost:5173
+APP_URL=http://localhost:8080
+ALLOWED_ORIGIN=http://localhost:8080
+GROQ_API_KEY=your_groq_key   # optional — admin AI description generation
 ```
+
+`APP_URL` must match the dev server port (8080, set in `vite.config.ts`) and, in
+production, your deployed origin — it is what builds the Google OAuth redirect URI.
+
+### Configure Google OAuth
+
+In [Google Cloud Console](https://console.cloud.google.com/apis/credentials) →
+Credentials → OAuth 2.0 Client ID (Web application):
+
+**Authorized JavaScript origins**
+
+```
+http://localhost:8080
+https://your-domain.vercel.app
+```
+
+**Authorized redirect URIs**
+
+```
+http://localhost:8080/api/auth/google/callback
+https://your-domain.vercel.app/api/auth/google/callback
+```
+
+The redirect URI must match `${APP_URL}/api/auth/google/callback` exactly — no
+trailing slash — or Google returns `redirect_uri_mismatch`.
 
 ### Run Development Server
 
