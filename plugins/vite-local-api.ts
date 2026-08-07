@@ -137,6 +137,10 @@ export function localApiPlugin(): Plugin {
           query: { ...query, ...params },
           url: req.url,
           cookies: {},
+          // Without this, getIp() has no x-forwarded-for and no socket to fall
+          // back on, so every dev client shares the single 'unknown' rate-limit
+          // bucket — one tab's failed logins would lock out another's.
+          socket: req.socket,
         };
         const mockRes = buildMockRes(res);
 

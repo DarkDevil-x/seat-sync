@@ -1,7 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import mongoose from 'mongoose';
 import dbConnect from '../db.js';
 import Event from '../models/Event.js';
-import { setCorsHeaders, setPublicCache } from './_utils/cors.js';
+import Seat from '../models/Seat.js';
+import { setCorsHeaders, setNoCache, setPublicCache } from './_utils/cors.js';
 import { requireAdmin } from './_utils/auth.js';
 
 /** Escape user input before it goes into a RegExp. */
@@ -9,6 +11,51 @@ const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const withIds = (rows: unknown[]) =>
   rows.map((e) => ({ ...(e as Record<string, unknown>), id: String((e as { _id: unknown })._id) }));
+
+/**
+ * Attach the live seat tally to each event.
+ *
+ * An Event document stores no seat fields — seats live in their own
+ * collection — yet both the admin events table ("Seats"/"Sold" columns) and
+ * the public event card's availability bar read `total_seats`/`sold_seats`
+ * off the event. Nothing ever set them, so the admin panel showed 0 seats no
+ * matter what layout had just been generated.
+ *
+ * `seat_rows`/`seat_columns` describe the layout actually in the database so
+ * the admin's "Manage Seats" dialog can prefill with the real grid instead of
+ * a hardcoded default.
+ */
+async function attachSeatCounts<T extends { id: string }>(events: T[]): Promise<T[]> {
+  if (events.length === 0) return events;
+
+  const ids = events.map((e) => new mongoose.Types.ObjectId(e.id));
+  const grouped = await Seat.aggregate([
+    { $match: { event_id: { $in: ids } } },
+    {
+      $group: {
+        _id: '$event_id',
+        total: { $sum: 1 },
+        sold: { $sum: { $cond: [{ $eq: ['$status', 'booked'] }, 1, 0] } },
+        held: { $sum: { $cond: [{ $eq: ['$status', 'reserved'] }, 1, 0] } },
+        rows: { $addToSet: '$row' },
+        widest_row: { $max: '$number' },
+      },
+    },
+  ]);
+
+  const byEvent = new Map(grouped.map((g) => [String(g._id), g]));
+  return events.map((e) => {
+    const g = byEvent.get(e.id);
+    return {
+      ...e,
+      total_seats: g?.total ?? 0,
+      sold_seats: g?.sold ?? 0,
+      held_seats: g?.held ?? 0,
+      seat_rows: g?.rows?.length ?? 0,
+      seat_columns: g?.widest_row ?? 0,
+    };
+  });
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(res);
@@ -20,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // GET /api/events – ?published=true, ?category=, ?featured=true,
     // ?spotlight=true, ?facets=true
     if (req.method === 'GET') {
-      const { published, category, featured, spotlight, facets } = req.query;
+      const { published, category, featured, spotlight, facets, fresh } = req.query;
 
       // ?facets=true – the distinct categories that actually have published
       // events, with counts. The home page builds its category bar from this
@@ -70,13 +117,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .lean();
         if (curated.length > 0) {
           setPublicCache(res, 60);
-          return res.status(200).json(withIds(curated));
+          return res.status(200).json(await attachSeatCounts(withIds(curated)));
         }
       }
 
       const rawEvents = await Event.find(filter).sort({ date: 1 }).limit(limit).lean();
-      setPublicCache(res, 60);
-      return res.status(200).json(withIds(rawEvents));
+      // The admin dashboard re-fetches right after generating seats and must
+      // never be served the 60s-old browser copy — the HTTP cache keys on the
+      // URL alone, so the Authorization header wouldn't bypass it.
+      if (fresh === 'true') setNoCache(res);
+      else setPublicCache(res, 60);
+      return res.status(200).json(await attachSeatCounts(withIds(rawEvents)));
     }
 
     // POST /api/events  – create event (admin only)

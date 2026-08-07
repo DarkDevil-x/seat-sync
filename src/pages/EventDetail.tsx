@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import SeatSelection from "@/components/SeatSelection";
+import { formatPrice } from "@/lib/utils";
 import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 
 type Event = {
@@ -54,6 +55,7 @@ export default function EventDetail() {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [seatRefreshKey, setSeatRefreshKey] = useState(0);
   const [zoom, setZoom] = useState(1);
+  const [imageBroken, setImageBroken] = useState(false);
   // Prevent double-click: ignore repeated calls within 500 ms
   const lastBookingAttempt = useRef(0);
 
@@ -265,13 +267,17 @@ export default function EventDetail() {
               {event.is_free && <Badge variant="outline" className="bg-green-100 text-green-800">Free</Badge>}
             </div>
             
-            {event.image_url ? (
+            {/* An image that 404s or is blocked by hotlink protection has to
+                land on the same placeholder as a missing one, not a broken
+                icon — the card grid already does this, the detail page didn't. */}
+            {event.image_url && !imageBroken ? (
               <img
                 src={event.image_url}
                 alt={event.title}
                 loading="lazy"
                 decoding="async"
                 className="w-full h-64 md:h-80 object-cover rounded-2xl mb-6"
+                onError={() => setImageBroken(true)}
               />
             ) : (
               <div className="w-full h-64 md:h-80 bg-muted rounded-2xl flex items-center justify-center mb-6 border border-border/50">
@@ -323,7 +329,7 @@ export default function EventDetail() {
               <h3 className="text-xl font-bold mb-4">Booking Summary</h3>
               <div className="flex justify-between mb-2">
                 <span>Price per ticket</span>
-                <span>{event.is_free ? "Free" : `$${event.price.toFixed(2)}`}</span>
+                <span>{event.is_free ? "Free" : formatPrice(event.price)}</span>
               </div>
               <div className="flex justify-between mb-2">
                 <span>Selected seats</span>
@@ -338,7 +344,7 @@ export default function EventDetail() {
               <Separator className="my-4" />
               <div className="flex justify-between mb-6 font-bold">
                 <span>Total</span>
-                <span>{event.is_free ? "Free" : `$${totalPrice.toFixed(2)}`}</span>
+                <span>{event.is_free ? "Free" : formatPrice(totalPrice)}</span>
               </div>
               {event.max_seats_per_user > 0 && (
                 <p className="text-xs mb-4 text-muted-foreground">

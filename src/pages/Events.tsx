@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, MapPin, Search, Zap, Heart, ArrowRight, X } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { formatPrice } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Event = {
@@ -124,7 +125,7 @@ const EventCard = memo(({ event, index, bookmarked, onToggleBookmark }: {
             {/* Price */}
             <div className="absolute top-3 left-3">
               <span className="inline-flex items-center rounded-lg bg-black/55 backdrop-blur-md px-2.5 py-1 text-xs font-bold text-white border border-white/10 shadow-md">
-                {event.is_free ? "Free" : `$${event.price.toFixed(2)}`}
+                {event.is_free ? "Free" : formatPrice(event.price)}
               </span>
             </div>
 

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
+import { formatPrice } from "@/lib/utils";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -107,7 +108,9 @@ function authHeader() {
 
 function exportCSV(bookings: Booking[]) {
   const rows = [
-    ["Booking ID", "Event", "User Name", "Email", "Seats", "Amount", "Status", "Checked-in", "Date"],
+    // Plain numbers, no ₹ symbol — spreadsheets parse the column as currency
+    // from the header, and a symbol in the cell would make it text.
+    ["Booking ID", "Event", "User Name", "Email", "Seats", "Amount (INR)", "Status", "Checked-in", "Date"],
     ...bookings.map((b) => [
       b.id,
       b.event?.title ?? "",
@@ -544,7 +547,7 @@ export default function AdminBookings() {
                   <div className="flex md:block items-center justify-between md:text-right">
                     <span className="md:hidden text-xs text-muted-foreground">Amount:</span>
                     <span className="text-sm font-semibold">
-                      {b.event?.is_free ? <span className="text-emerald-400 text-xs">Free</span> : `$${b.total_price.toFixed(2)}`}
+                      {b.event?.is_free ? <span className="text-emerald-400 text-xs">Free</span> : formatPrice(b.total_price)}
                     </span>
                   </div>
 
@@ -683,7 +686,7 @@ export default function AdminBookings() {
                         <Badge variant="outline" className="text-[10px]">{selected.event.category}</Badge>
                         {selected.event.is_free
                           ? <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30">Free</Badge>
-                          : <span className="text-xs font-semibold">${selected.event.price}</span>}
+                          : <span className="text-xs font-semibold">{formatPrice(selected.event.price)}</span>}
                       </div>
                     </div>
                   </div>
@@ -734,7 +737,7 @@ export default function AdminBookings() {
                         </div>
                         <div className="text-right">
                           {seatTypeBadge(s.seat_type)}
-                          <p className="text-xs text-muted-foreground mt-0.5">${s.price}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{formatPrice(s.price)}</p>
                         </div>
                       </div>
                     ))}
@@ -748,7 +751,7 @@ export default function AdminBookings() {
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground text-sm">Total Paid</span>
                   <span className="text-xl font-bold">
-                    {selected.event?.is_free ? "Free" : `$${selected.total_price.toFixed(2)}`}
+                    {selected.event?.is_free ? "Free" : formatPrice(selected.total_price)}
                   </span>
                 </div>
                 {selected.booking_note && (

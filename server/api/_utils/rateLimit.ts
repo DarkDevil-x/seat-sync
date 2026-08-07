@@ -3,8 +3,13 @@
  * Uses a sliding window counter per IP address.
  *
  * Usage:
- *   const limited = rateLimit(req, { windowMs: 60_000, max: 10 });
+ *   const limited = rateLimit(ip, { scope: 'login', windowMs: 60_000, max: 10 });
  *   if (limited) return res.status(429).json({ error: 'Too many requests' });
+ *
+ * `scope` gives each endpoint its own counter. Without it every caller shared
+ * a single per-IP bucket, so a burst of failed logins immediately locked new
+ * signups out ("Too many registration attempts" on a first-ever attempt), and
+ * whichever endpoint created the bucket also imposed its window on the other.
  */
 
 interface Bucket {
@@ -24,14 +29,15 @@ setInterval(() => {
 
 export function rateLimit(
   ip: string,
-  options: { windowMs: number; max: number }
+  options: { scope: string; windowMs: number; max: number }
 ): boolean {
-  const { windowMs, max } = options;
+  const { scope, windowMs, max } = options;
   const now = Date.now();
+  const key = `${scope}:${ip}`;
 
-  const bucket = store.get(ip);
+  const bucket = store.get(key);
   if (!bucket || bucket.resetAt < now) {
-    store.set(ip, { count: 1, resetAt: now + windowMs });
+    store.set(key, { count: 1, resetAt: now + windowMs });
     return false;
   }
 

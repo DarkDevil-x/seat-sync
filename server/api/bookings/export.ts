@@ -73,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const header = [
       'Booking ID', 'QR / Ticket ID', 'Event', 'User Name', 'Student ID',
       'Email', 'Phone', 'Course', 'Seats', 'Ticket Type', 'Status',
-      'Checked In', 'Amount', 'Booking Date', 'Note',
+      'Checked In', 'Amount (INR)', 'Booking Date', 'Note',
     ];
     const dataRows = bookings.map((b) => {
       const user = userMap.get(String(b.user_id));

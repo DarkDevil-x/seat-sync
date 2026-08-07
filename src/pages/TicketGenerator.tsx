@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import html2canvas from "html2canvas";
 import QRCode from "qrcode";
+import { formatPrice } from "@/lib/utils";
 
 type FetchState = "idle" | "loading" | "success" | "not_found" | "error";
 
@@ -445,7 +446,7 @@ const TicketGenerator = () => {
                     {[
                       { label: "DATE",  value: eventDate ? formatDate(eventDate) : "—" },
                       { label: "VENUE", value: eventVenue },
-                      { label: "PRICE", value: isFree ? "Free" : totalPrice > 0 ? `$${totalPrice.toFixed(2)}` : "—" },
+                      { label: "PRICE", value: isFree ? "Free" : totalPrice > 0 ? formatPrice(totalPrice) : "—" },
                     ].map(({ label, value }) => (
                       <div key={label}>
                         <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.85)", display: "block", marginBottom: 3 }}>

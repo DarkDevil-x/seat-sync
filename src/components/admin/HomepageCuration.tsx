@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Event } from "@/types";
 import { ExternalLink, Star, Sparkles, AlertCircle } from "lucide-react";
+import { formatPrice } from "@/lib/utils";
 
 /** Only two spotlight cards fit over the hero image — mirrors the server cap. */
 const SPOTLIGHT_LIMIT = 2;
@@ -178,7 +179,7 @@ export function HomepageCuration({ events, onToggle, pendingId }: Props) {
                     </div>
                     <p className="text-xs text-muted-foreground">{e.location}</p>
                     <p className="text-sm font-bold text-foreground mt-2">
-                      {e.is_free || !e.price ? "Free" : `$${e.price.toFixed(2)}`}
+                      {e.is_free || !e.price ? "Free" : formatPrice(e.price)}
                     </p>
                   </div>
                 ))}

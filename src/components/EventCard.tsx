@@ -5,6 +5,7 @@ import { Badge } from "./ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { Calendar, MapPin, Heart, Zap, ArrowRight } from "lucide-react";
 import { Event } from "@/types";
+import { formatPrice } from "@/lib/utils";
 
 interface EventCardProps {
   event: Event;
@@ -77,7 +78,7 @@ export const EventCard = memo(function EventCard({
             {/* Price badge */}
             <div className="absolute top-3 left-3">
               <span className="inline-flex items-center rounded-lg bg-black/60 backdrop-blur-md px-2.5 py-1 text-xs font-bold text-white border border-white/10">
-                {typeof price === "number" && price === 0 ? "Free" : `$${typeof price === "number" ? price.toFixed(2) : price}`}
+                {typeof price === "number" && price === 0 ? "Free" : formatPrice(price)}
               </span>
             </div>
 

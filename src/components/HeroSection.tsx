@@ -1,11 +1,23 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Calendar, MapPin } from "lucide-react";
+import { formatPrice } from "@/lib/utils";
 
 const TRUST_ITEMS = ["Live seat maps", "Instant confirmation", "Secure checkout"];
 
-/** Used only when no event has an image of its own. */
+/** Used when no event has an image of its own, or that image won't load. */
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14";
+
+/**
+ * `?w=&q=&auto=format` is imgix syntax — it only means anything to Unsplash.
+ * Appending it to an arbitrary poster URL is at best dead weight and at worst
+ * a cache miss or a 404 on a stricter CDN, so resize only what can resize.
+ */
+const isResizable = (url: string) => url.startsWith("https://images.unsplash.com/");
+
+const sized = (url: string, w: number) =>
+  isResizable(url) ? `${url}${url.includes("?") ? "&" : "?"}w=${w}&q=75&auto=format` : url;
 
 type SpotlightEvent = {
   id: string;
@@ -34,7 +46,7 @@ const dateFmt = new Intl.DateTimeFormat("en-US", {
 });
 
 const priceLabel = (e: SpotlightEvent) =>
-  e.is_free || !e.price ? "Free" : `$${Number(e.price).toFixed(2)}`;
+  e.is_free || !e.price ? "Free" : formatPrice(e.price);
 
 /** A real, clickable event card floating over the hero image. */
 function SpotlightCard({ event, className }: { event: SpotlightEvent; className: string }) {
@@ -73,11 +85,20 @@ export function HeroSection() {
     queryFn: fetchSpotlight,
     staleTime: 60_000,
   });
+  const [brokenSrc, setBrokenSrc] = useState<string | null>(null);
 
   // The hero image is the lead event's own artwork when it has one — real
   // product content beats a stock photo.
-  const heroSrc = spotlight.find((e) => e.image_url)?.image_url ?? FALLBACK_IMAGE;
-  const src = (w: number) => `${heroSrc}${heroSrc.includes("?") ? "&" : "?"}w=${w}&q=75&auto=format`;
+  //
+  // But an admin can paste any URL, and plenty of image hosts refuse
+  // cross-origin requests (hotlink protection returns 403 once the browser
+  // attaches a Referer) or are plain http, which an https deployment blocks as
+  // mixed content. Either way the swap from the stock photo to the event's
+  // artwork used to leave a broken-image icon sitting in the hero, so fall
+  // back the moment the load fails.
+  const eventSrc = spotlight.find((e) => e.image_url)?.image_url;
+  const heroSrc = eventSrc && eventSrc !== brokenSrc ? eventSrc : FALLBACK_IMAGE;
+  const src = (w: number) => sized(heroSrc, w);
 
   return (
     <section className="relative min-h-[92vh] flex items-center overflow-hidden bg-background">
@@ -147,8 +168,15 @@ export function HeroSection() {
           >
             <div className="relative w-full rounded-2xl overflow-hidden border border-border shadow-2xl">
               <img
+                // Keyed on the source so React remounts (and re-runs onError)
+                // when the hero swaps from the stock photo to event artwork.
+                key={heroSrc}
                 src={src(800)}
-                srcSet={`${src(480)} 480w, ${src(800)} 800w, ${src(1200)} 1200w`}
+                srcSet={
+                  isResizable(heroSrc)
+                    ? `${src(480)} 480w, ${src(800)} 800w, ${src(1200)} 1200w`
+                    : undefined
+                }
                 sizes="(min-width: 1024px) 40vw, 80vw"
                 alt=""
                 width={800}
@@ -156,6 +184,7 @@ export function HeroSection() {
                 className="w-full aspect-[16/10] object-cover"
                 loading="eager"
                 decoding="async"
+                onError={() => setBrokenSrc(heroSrc)}
                 // React 18 doesn't map the camelCase prop; the lowercase
                 // attribute is what actually reaches the DOM.
                 {...{ fetchpriority: "high" }}

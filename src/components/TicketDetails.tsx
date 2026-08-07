@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Ticket } from "lucide-react";
+import { formatPrice } from "@/lib/utils";
 
 type TicketProps = {
   booking: {
@@ -98,7 +99,7 @@ const TicketDetails = ({ booking }: TicketProps) => {
             {booking.is_free ? (
               <p className="text-sm font-semibold mt-2 text-green-600 dark:text-green-400">🎫 Free</p>
             ) : booking.total_price > 0 ? (
-              <p className="font-semibold mt-2">${booking.total_price.toFixed(2)}</p>
+              <p className="font-semibold mt-2">{formatPrice(booking.total_price)}</p>
             ) : null}
             
             <p className="text-xs text-muted-foreground mt-1">

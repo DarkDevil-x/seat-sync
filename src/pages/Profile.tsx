@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatPrice } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 type Profile = {
@@ -457,7 +458,7 @@ export default function Profile() {
                                 {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                               </Badge>
                               <p className="text-lg font-bold mt-1">
-                                ${booking.total_price.toFixed(2)}
+                                {formatPrice(booking.total_price)}
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 {formatDate(booking.created_at)}

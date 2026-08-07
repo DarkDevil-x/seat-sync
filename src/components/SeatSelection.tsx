@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, memo } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/providers/AuthProvider";
+import { compareRows } from "@/lib/utils";
 
 const HOLD_DURATION_MS = 10 * 60 * 1_000;
 const POLL_INTERVAL_MS = 5_000;
@@ -69,7 +70,6 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
   const [rows, setRows] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [creatingSeats, setCreatingSeats] = useState(false);
   const [userBookedSeats, setUserBookedSeats] = useState<string[]>([]);
   // seatId → hold-expiry timestamp (ms)
   const [holdExpiries, setHoldExpiries] = useState<Map<string, number>>(new Map());
@@ -118,7 +118,7 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
       });
     if (hasChanges) {
       setSeats(list);
-      setRows(Array.from(new Set(list.map((s) => s.row))).sort());
+      setRows(Array.from(new Set(list.map((s) => s.row))).sort(compareRows));
     }
     return list;
   };
@@ -299,54 +299,12 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
       const res = await fetch(`/api/seats?eventId=${eventId}`);
       if (!res.ok) throw new Error("Failed to fetch seats");
       const raw: any[] = await res.json();
-      if (raw.length === 0) {
-        await createDefaultSeats();
-        return;
-      }
       applySeats(raw);
     } catch (err: any) {
       console.error("Error fetching seats:", err);
       setError(err.message || "Failed to load seats");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const createDefaultSeats = async () => {
-    setCreatingSeats(true);
-    setError(null);
-    try {
-      const eventRes = await fetch(`/api/events/${eventId}`);
-      if (!eventRes.ok) throw new Error("Failed to fetch event details");
-      const eventData = await eventRes.json();
-      const basePrice = eventData.price || 10;
-
-      const genRes = await fetch("/api/seats/generate", {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({
-          eventId,
-          seatPrice: String(basePrice),
-          customLayout: true,
-          numberOfRows: 10,
-          numberOfColumns: 9,
-        }),
-      });
-      if (!genRes.ok) {
-        const e = await genRes.json().catch(() => ({}));
-        throw new Error(e.error || "Failed to create seats");
-      }
-      const result = await genRes.json();
-      toast({
-        title: "Seats created",
-        description: `${result.count} seats have been created for this event.`,
-      });
-      fetchSeats();
-    } catch (err: any) {
-      console.error("Error creating default seats:", err);
-      setError(err.message || "Failed to create seats");
-    } finally {
-      setCreatingSeats(false);
     }
   };
 
@@ -440,10 +398,6 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
     return <div className="flex justify-center py-12">Loading seating plan...</div>;
   }
 
-  if (creatingSeats) {
-    return <div className="flex justify-center py-12">Creating seats for this event...</div>;
-  }
-
   if (error) {
     return (
       <div className="text-center py-8 text-destructive">
@@ -458,16 +412,17 @@ const SeatSelection = ({ eventId, onSeatSelect }: SeatSelectionProps) => {
     );
   }
 
+  // Seating is the organiser's call. This used to silently POST a 10×9 grid
+  // whenever the map came back empty, so the first admin to open the event
+  // page created a layout nobody asked for — and the admin's own "Manage
+  // Seats" dialog then disagreed with what was in the database.
   if (seats.length === 0) {
     return (
-      <div className="text-center py-8">
-        <p className="mb-2">No seats available for this event yet.</p>
-        <button
-          onClick={createDefaultSeats}
-          className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-        >
-          Create Default Seats
-        </button>
+      <div className="text-center py-12 rounded-3xl border border-border bg-card">
+        <p className="font-medium">Seating isn't published for this event yet.</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          The organiser hasn't set up the seat map. Please check back soon.
+        </p>
       </div>
     );
   }

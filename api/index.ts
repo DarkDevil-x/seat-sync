@@ -10,6 +10,7 @@ import route_4 from '../server/api/admin/checkin.js';
 import route_5 from '../server/api/admin/event-control.js';
 import route_6 from '../server/api/admin/export-users.js';
 import route_7 from '../server/api/admin/seat-type.js';
+import route_stats from '../server/api/admin/stats.js';
 import route_8 from '../server/api/auth/admin-setup.js';
 import route_9 from '../server/api/auth/change-password.js';
 import route_10 from '../server/api/auth/check-admin.js';
@@ -50,6 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (pathname === '/api/admin/event-control') return route_5(req, res);
     if (pathname === '/api/admin/export-users') return route_6(req, res);
     if (pathname === '/api/admin/seat-type') return route_7(req, res);
+    if (pathname === '/api/admin/stats') return route_stats(req, res);
     if (pathname === '/api/auth/admin-setup') return route_8(req, res);
     if (pathname === '/api/auth/change-password') return route_9(req, res);
     if (pathname === '/api/auth/check-admin') return route_10(req, res);

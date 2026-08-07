@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { formatPrice } from "@/lib/utils";
 
 interface BookingData {
   _id: string;
@@ -475,7 +476,7 @@ export default function ValidateTicket() {
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#71717A", fontSize: "12px" }}>AMOUNT</span>
                 <span style={{ color: "#E4E4E7", fontSize: "13px" }}>
-                  {booking.event.is_free ? "Free" : `$${booking.total_price.toFixed(2)}`}
+                  {booking.event.is_free ? "Free" : formatPrice(booking.total_price)}
                 </span>
               </div>
             </div>

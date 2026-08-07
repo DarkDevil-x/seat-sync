@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { HomepageCuration } from "@/components/admin/HomepageCuration";
+import { compareRows, formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,12 +36,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useQueryClient } from "@tanstack/react-query";
 import { 
   BarChart3, 
   Calendar, 
   CheckCircle2, 
   Clock, 
-  DollarSign, 
+  IndianRupee,
   Download, 
   Edit, 
   Eye, 
@@ -71,8 +80,12 @@ import {
   Cell 
 } from "recharts";
 
+/** Sentinel option in the category dropdown — Radix rejects an empty value. */
+const NEW_CATEGORY = "__new_category__";
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -91,6 +104,9 @@ export default function AdminDashboard() {
   const [eventLocation, setEventLocation] = useState("");
   const [eventPrice, setEventPrice] = useState("");
   const [eventCategory, setEventCategory] = useState("");
+  // Swaps the category dropdown for a free-text field when the admin is
+  // inventing a category rather than reusing one of the existing ones.
+  const [creatingCategory, setCreatingCategory] = useState(false);
   const [eventImageUrl, setEventImageUrl] = useState("");
   const [publishEvent, setPublishEvent] = useState(false);
   const [isFreeEvent, setIsFreeEvent] = useState(false);
@@ -117,12 +133,12 @@ export default function AdminDashboard() {
   const [customLayout, setCustomLayout] = useState(true);
   const [numberOfRows, setNumberOfRows] = useState(15);
   const [numberOfColumns, setNumberOfColumns] = useState(15);
-  const [sectionNames, setSectionNames] = useState({
-    front: "FRONT",
-    middle: "BACKSIDE",
-    back: "BALCONY"
-  });
   const [previewVisible, setPreviewVisible] = useState(true);
+  // What the database currently holds for the selected event, so the dialog
+  // can say what exists before it says what it will create.
+  const [existingSeatCount, setExistingSeatCount] = useState(0);
+  const [existingSoldCount, setExistingSoldCount] = useState(0);
+  const [generatingSeats, setGeneratingSeats] = useState(false);
   
   // Booking details dialog
   const [showBookingDetailsDialog, setShowBookingDetailsDialog] = useState(false);
@@ -208,7 +224,13 @@ export default function AdminDashboard() {
       const res = await fetch("/api/admin/stats", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (!res.ok) return;
+      // Swallowing this silently is how the whole dashboard sat at zero for so
+      // long — /api/admin/stats 404'd because the route was never registered
+      // in api/index.ts, and every tile just rendered its `?? 0` fallback.
+      if (!res.ok) {
+        console.error("Error fetching stats:", res.status, await res.text().catch(() => ""));
+        return;
+      }
       setStats(await res.json());
     } catch (err) {
       console.error("Error fetching stats:", err);
@@ -249,7 +271,10 @@ export default function AdminDashboard() {
     try {
       console.log("Fetching events for admin dashboard");
       const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/events", {
+      // ?fresh=true opts out of the 60s public Cache-Control. The browser
+      // cache keys on the URL alone, so without it a re-fetch right after
+      // generating seats replayed the pre-generation seat counts.
+      const response = await fetch("/api/events?fresh=true", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!response.ok) {
@@ -444,7 +469,8 @@ export default function AdminDashboard() {
     
     setEventLocation(event.location);
     setEventPrice(event.price.toString());
-    setEventCategory(event.category);
+    setEventCategory(event.category ?? "");
+    setCreatingCategory(false);
     setEventImageUrl(event.image_url || "");
     setPublishEvent(event.is_published);
     setIsFreeEvent(event.is_free || false);
@@ -462,6 +488,7 @@ export default function AdminDashboard() {
     setEventLocation("");
     setEventPrice("");
     setEventCategory("");
+    setCreatingCategory(false);
     setEventImageUrl("");
     setPublishEvent(false);
     setIsFreeEvent(false);
@@ -482,7 +509,7 @@ export default function AdminDashboard() {
     }
     
     // Validate form
-    if (!eventTitle || !eventDescription || !eventDate || !eventLocation || (!isFreeEvent && !eventPrice) || !eventCategory) {
+    if (!eventTitle || !eventDescription || !eventDate || !eventLocation || (!isFreeEvent && !eventPrice) || !eventCategory.trim()) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -494,14 +521,20 @@ export default function AdminDashboard() {
     try {
       // Combine date and time
       const dateTime = new Date(`${eventDate}T${eventTime}`);
-      
+
+      // Snap a freshly typed category onto an existing one that differs only
+      // by case, so "music" doesn't sit beside "Music" in the Browse-by bar.
+      const typed = eventCategory.trim();
+      const category =
+        existingCategories.find((c) => c.toLowerCase() === typed.toLowerCase()) ?? typed;
+
       const eventData = {
         title: eventTitle,
         description: eventDescription,
         date: dateTime.toISOString(),
         location: eventLocation,
         price: isFreeEvent ? 0 : parseFloat(eventPrice),
-        category: eventCategory,
+        category,
         image_url: eventImageUrl || null,
         is_published: publishEvent,
         created_by: user.id, // Ensure this is set to the current user's ID
@@ -545,6 +578,10 @@ export default function AdminDashboard() {
       
       fetchEvents();
       void fetchStats();
+      // The home page and /events build their category bar from a cached
+      // React Query entry; drop it so a brand-new category shows up as soon
+      // as the admin navigates there instead of up to 5 minutes later.
+      void queryClient.invalidateQueries({ queryKey: ["events"] });
       setShowEventDialog(false);
     } catch (error: any) {
       console.error("Error saving event:", error);
@@ -580,6 +617,7 @@ export default function AdminDashboard() {
       fetchEvents();
       fetchBookings();
       void fetchStats();
+      void queryClient.invalidateQueries({ queryKey: ["events"] });
     } catch (error: any) {
       console.error("Error deleting event:", error);
       toast({
@@ -590,12 +628,20 @@ export default function AdminDashboard() {
     }
   };
 
+  /**
+   * Prefill the dialog with the layout that is actually in the database.
+   * It used to hard-reset to 15×15 every time, so after generating (say) a
+   * 15×16 map the dialog reopened claiming 15×15 / 225 seats — the layout
+   * shown here disagreed with the one the event page rendered.
+   */
   const openManageSeatsDialog = (event: any) => {
     setSelectedEventId(event.id);
     setSelectedEventTitle(event.title);
     setCustomLayout(true); // Default to custom layout
-    setNumberOfRows(15); // Default to 15 rows
-    setNumberOfColumns(15); // Default to 15 columns
+    setNumberOfRows(event.seat_rows > 0 ? event.seat_rows : 15);
+    setNumberOfColumns(event.seat_columns > 0 ? event.seat_columns : 15);
+    setExistingSeatCount(event.total_seats ?? 0);
+    setExistingSoldCount(event.sold_seats ?? 0);
     setSeatPrice(event.price.toString());
     setShowSeatDialog(true);
   };
@@ -625,6 +671,13 @@ export default function AdminDashboard() {
       return;
     }
     
+    if (existingSeatCount > 0 && !confirm(
+      `This replaces the current ${existingSeatCount}-seat layout` +
+      (existingSoldCount > 0 ? ` and cancels ${existingSoldCount} booked seat(s)` : "") +
+      ". Continue?"
+    )) return;
+
+    setGeneratingSeats(true);
     try {
       const token = localStorage.getItem("auth_token");
       const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -649,9 +702,14 @@ export default function AdminDashboard() {
 
       toast({
         title: "Success",
-        description: `${result.count} seats created successfully`,
+        // Report the grid the server actually wrote, not the one requested.
+        description: `${result.count} seats created (${result.rows} rows × ${result.columns} per row)`,
       });
       setShowSeatDialog(false);
+      // Without this the events table kept showing the seat counts from before
+      // the regeneration until a full page reload.
+      await fetchEvents();
+      void fetchStats();
     } catch (error: any) {
       console.error("Error creating seats:", error);
       toast({
@@ -659,6 +717,8 @@ export default function AdminDashboard() {
         description: error.message || "Failed to create seats",
         variant: "destructive",
       });
+    } finally {
+      setGeneratingSeats(false);
     }
   };
 
@@ -756,6 +816,8 @@ export default function AdminDashboard() {
       if (!response.ok) throw new Error(result.error || "Failed to reset seats");
       toast({ title: "Reset", description: `${result.seatsReset} seats reset to available` });
       fetchBookings();
+      void fetchEvents();
+      void fetchStats();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -892,6 +954,9 @@ export default function AdminDashboard() {
       setSeatCtrlSelected([]);
       await openSeatControl({ id: seatCtrlEventId, title: seatCtrlEventTitle });
       fetchBookings();
+      // Booking/blocking seats moves the "Sold" tally behind the dialog.
+      void fetchEvents();
+      void fetchStats();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -1009,10 +1074,13 @@ export default function AdminDashboard() {
   const renderSeatPreview = () => {
     if (!previewVisible) return null;
     
-    const previewRows = customLayout ? 
-      generateRowLetters(Math.min(numberOfRows, 6)) : 
-      rows.slice(0, Math.min(rows.length, 6));
-      
+    // Full row list, not the first six — the sections below slice out of it by
+    // index, so truncating here would leave the balcony section empty.
+    const previewRows = customLayout
+      ? generateRowLetters(numberOfRows)
+      : rows.slice(0, Math.min(rows.length, 6));
+
+
     const previewColumns = customLayout ?
       Math.min(numberOfColumns, 15) :
       Math.min(seatsPerRow, 15);
@@ -1021,64 +1089,52 @@ export default function AdminDashboard() {
       <div className="border p-4 rounded-md bg-gray-50 mt-4">
         <h4 className="text-center font-semibold mb-2">Seating Preview</h4>
         
-        {customLayout && (
-          <div className="flex flex-col items-center">
-            <div className="bg-gray-200 w-3/4 mx-auto text-center py-1 text-xs rounded-t-lg mb-1">
-              {sectionNames.back}
-            </div>
-            
-            <div className="flex flex-col items-center gap-1 mb-4">
-              {previewRows.slice(0, 2).map((row, i) => (
-                <div key={`preview-back-${i}`} className="flex gap-1">
-                  <span className="text-xs w-4">{row}</span>
-                  {[...Array(previewColumns)].map((_, j) => (
-                    <div key={`seat-back-${i}-${j}`} className="w-4 h-4 bg-secondary rounded-sm flex items-center justify-center text-[8px]">
-                      {j+1}
-                    </div>
-                  ))}
+        {/*
+          Sections are drawn in the order the ticket page draws them —
+          screen first, then Front / Back / Balcony as the rows run A, B, C…
+          The old preview printed the sections upside down and put the STAGE
+          at the bottom, so row A was labelled "BALCONY" here and "Front" on
+          the event page.
+        */}
+        {customLayout && (() => {
+          const sectionSize = Math.ceil(numberOfRows / 3);
+          const sections = [
+            { name: "FRONT", rows: previewRows.slice(0, Math.min(sectionSize, 2)), surcharge: 5 },
+            { name: "BACK", rows: previewRows.slice(sectionSize, sectionSize + 2), surcharge: 2 },
+            { name: "BALCONY", rows: previewRows.slice(sectionSize * 2, sectionSize * 2 + 2), surcharge: 0 },
+          ].filter((s) => s.rows.length > 0);
+
+          return (
+            <div className="flex flex-col items-center">
+              <div className="bg-gray-200 w-1/2 mx-auto text-center py-1 text-xs rounded-b-lg mb-3">
+                SCREEN
+              </div>
+
+              {sections.map((section) => (
+                <div key={section.name} className="w-full flex flex-col items-center">
+                  <div className="bg-gray-200 w-3/4 mx-auto text-center py-1 text-xs mb-1">
+                    {section.name}
+                    <span className="text-gray-500">
+                      {section.surcharge > 0 ? ` · base + ₹${section.surcharge}` : " · base price"}
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1 mb-4">
+                    {section.rows.map((row) => (
+                      <div key={`preview-${row}`} className="flex gap-1">
+                        <span className="text-xs w-4">{row}</span>
+                        {[...Array(previewColumns)].map((_, j) => (
+                          <div key={`seat-${row}-${j}`} className="w-4 h-4 bg-secondary rounded-sm flex items-center justify-center text-[8px]">
+                            {j + 1}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
-            
-            <div className="bg-gray-200 w-3/4 mx-auto text-center py-1 text-xs mb-1">
-              {sectionNames.middle}
-            </div>
-            
-            <div className="flex flex-col items-center gap-1 mb-4">
-              {previewRows.slice(2, 4).map((row, i) => (
-                <div key={`preview-middle-${i}`} className="flex gap-1">
-                  <span className="text-xs w-4">{row}</span>
-                  {[...Array(previewColumns)].map((_, j) => (
-                    <div key={`seat-middle-${i}-${j}`} className="w-4 h-4 bg-secondary rounded-sm flex items-center justify-center text-[8px]">
-                      {j+1}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-            
-            <div className="bg-gray-200 w-3/4 mx-auto text-center py-1 text-xs mb-1">
-              {sectionNames.front}
-            </div>
-            
-            <div className="flex flex-col items-center gap-1 mb-4">
-              {previewRows.slice(4, 6).map((row, i) => (
-                <div key={`preview-front-${i}`} className="flex gap-1">
-                  <span className="text-xs w-4">{row}</span>
-                  {[...Array(previewColumns)].map((_, j) => (
-                    <div key={`seat-front-${i}-${j}`} className="w-4 h-4 bg-secondary rounded-sm flex items-center justify-center text-[8px]">
-                      {j+1}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-            
-            <div className="bg-gray-200 w-1/2 mx-auto text-center py-1 text-xs rounded-t-lg mt-2">
-              STAGE
-            </div>
-          </div>
-        )}
+          );
+        })()}
         
         {!customLayout && (
           <div className="flex flex-col items-center">
@@ -1139,6 +1195,31 @@ export default function AdminDashboard() {
   // Memoised filters — recompute only when source data or its tab's query
   // changes. Must be declared BEFORE any conditional early return so the hook
   // count stays consistent between renders (React error #310 otherwise).
+  /**
+   * Every category already in use, drafts included — the source for the
+   * create/edit dropdown. Deriving it from the events we already hold keeps
+   * it in step with the home page's "Browse by" bar, which is built from the
+   * same stored values (via /api/events?facets=true, published events only).
+   *
+   * Deduped case-insensitively so "Music" and "music" can't become two pills.
+   */
+  const existingCategories = useMemo(() => {
+    const byLower = new Map<string, string>();
+    for (const e of events) {
+      const label = String(e.category ?? "").trim();
+      if (label && !byLower.has(label.toLowerCase())) {
+        byLower.set(label.toLowerCase(), label);
+      }
+    }
+    // The event being edited may spell its category differently from the one
+    // that won the dedupe; without this the trigger would fall back to the
+    // placeholder and look like nothing was selected. Skipped while a new
+    // category is being typed, or the field would flip to a dropdown mid-word.
+    const current = eventCategory.trim();
+    if (current && !creatingCategory) byLower.set(current.toLowerCase(), current);
+    return Array.from(byLower.values()).sort((a, b) => a.localeCompare(b));
+  }, [events, eventCategory, creatingCategory]);
+
   const filteredEvents = useMemo(() => {
     const q = eventSearch.trim().toLowerCase();
     if (!q) return events;
@@ -1255,10 +1336,10 @@ export default function AdminDashboard() {
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm text-muted-foreground">Total Revenue</p>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <IndianRupee className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <p className="text-3xl font-bold">
-                  ${(stats?.bookings.revenue ?? 0).toFixed(0)}
+                  {formatPrice(stats?.bookings.revenue ?? 0, { whole: true })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">confirmed bookings</p>
               </CardContent>
@@ -1388,7 +1469,7 @@ export default function AdminDashboard() {
                         <TableRow key={b._id ?? b.id}>
                           <TableCell className="font-medium text-sm">{b.event?.title ?? b.events?.title ?? '—'}</TableCell>
                           <TableCell className="text-sm">{b.user?.email ?? b.profiles?.email ?? '—'}</TableCell>
-                          <TableCell className="text-sm">{(b.events?.is_free || b.is_free) ? <span className="text-green-600 font-medium">Free</span> : `$${(b.total_price ?? 0).toFixed(2)}`}</TableCell>
+                          <TableCell className="text-sm">{(b.events?.is_free || b.is_free) ? <span className="text-green-600 font-medium">Free</span> : formatPrice(b.total_price ?? 0)}</TableCell>
                           <TableCell>
                             <Badge className={b.status === 'confirmed' ? 'bg-green-100 text-green-800' : b.status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}>
                               {b.status}
@@ -1480,7 +1561,7 @@ export default function AdminDashboard() {
                           <TableCell className="font-medium">{event.title}</TableCell>
                           <TableCell>{formatDate(event.date)}</TableCell>
                           <TableCell>{event.category}</TableCell>
-                          <TableCell>{event.is_free ? "Free" : `$${event.price.toFixed(2)}`}</TableCell>
+                          <TableCell>{event.is_free ? "Free" : formatPrice(event.price)}</TableCell>
                           <TableCell>{getPublishStatusBadge(event.is_published)}</TableCell>
                           <TableCell>{event.total_seats || 0}</TableCell>
                           <TableCell>{event.sold_seats || 0}</TableCell>
@@ -1656,7 +1737,7 @@ export default function AdminDashboard() {
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Revenue</p>
-                <p className="text-2xl font-bold">${(stats?.bookings.revenue ?? 0).toFixed(2)}</p>
+                <p className="text-2xl font-bold">{formatPrice(stats?.bookings.revenue ?? 0)}</p>
               </CardContent>
             </Card>
           </div>
@@ -1706,7 +1787,7 @@ export default function AdminDashboard() {
                             {booking.profiles?.last_name || ""}
                           </TableCell>
                           <TableCell>{formatDate(booking.created_at)}</TableCell>
-                          <TableCell>{(booking.events?.is_free || booking.is_free) ? <span className="text-green-600 font-medium">Free</span> : `$${booking.total_price.toFixed(2)}`}</TableCell>
+                          <TableCell>{(booking.events?.is_free || booking.is_free) ? <span className="text-green-600 font-medium">Free</span> : formatPrice(booking.total_price)}</TableCell>
                           <TableCell>
                             <Badge
                               className={
@@ -1990,16 +2071,60 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="category">Category</Label>
-                    <Input
-                      id="category"
-                      value={eventCategory}
-                      onChange={(e) => setEventCategory(e.target.value)}
-                      placeholder="Enter event category"
-                      required
-                    />
+                    {creatingCategory || existingCategories.length === 0 ? (
+                      <div className="flex gap-2">
+                        <Input
+                          id="category"
+                          value={eventCategory}
+                          onChange={(e) => setEventCategory(e.target.value)}
+                          placeholder="New category name"
+                          required
+                        />
+                        {existingCategories.length > 0 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setCreatingCategory(false);
+                              setEventCategory("");
+                            }}
+                          >
+                            Pick
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <Select
+                        value={eventCategory}
+                        onValueChange={(value) => {
+                          if (value === NEW_CATEGORY) {
+                            setCreatingCategory(true);
+                            setEventCategory("");
+                            return;
+                          }
+                          setEventCategory(value);
+                        }}
+                      >
+                        <SelectTrigger id="category">
+                          <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {existingCategories.map((c) => (
+                            <SelectItem key={c} value={c}>
+                              {c}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value={NEW_CATEGORY}>+ Create new category…</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      A new category appears in the site's “Browse by” bar once a
+                      published event uses it.
+                    </p>
                   </div>
                   <div>
-                    <Label htmlFor="price">Price {isFreeEvent && "(Free)"}</Label>
+                    <Label htmlFor="price">Price (₹) {isFreeEvent && "(Free)"}</Label>
                     <Input
                       id="price"
                       type="number"
@@ -2070,6 +2195,25 @@ export default function AdminDashboard() {
               Generate seats for event: {selectedEventTitle}
             </DialogDescription>
           </DialogHeader>
+
+          <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+            {existingSeatCount > 0 ? (
+              <>
+                <span className="font-medium">Current layout:</span>{" "}
+                {existingSeatCount} seats — {numberOfRows} rows × {numberOfColumns} per row
+                {existingSoldCount > 0 && (
+                  <span className="text-muted-foreground"> · {existingSoldCount} booked</span>
+                )}
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Generating replaces this layout and cancels every booking on it.
+                </p>
+              </>
+            ) : (
+              <span className="text-muted-foreground">
+                No seats generated for this event yet.
+              </span>
+            )}
+          </div>
 
           <div className="grid gap-4 py-4">
             <div className="flex items-center space-x-2 mb-3">
@@ -2146,9 +2290,9 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="seatPrice">Base price per seat ($)</Label>
+                  <Label htmlFor="seatPrice">Base price per seat (₹)</Label>
                   <div className="text-xs text-gray-500 mb-1">
-                    Front section: Base price + $5, Middle section: Base price + $2, Back section: Base price
+                    Front section: Base price + ₹5, Back section: Base price + ₹2, Balcony: Base price
                   </div>
                   <Input
                     id="seatPrice"
@@ -2226,7 +2370,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="seatPrice">Price per seat ($)</Label>
+                  <Label htmlFor="seatPrice">Price per seat (₹)</Label>
                   <Input
                     id="seatPrice"
                     type="number"
@@ -2270,10 +2414,13 @@ export default function AdminDashboard() {
               type="button"
               variant="outline"
               onClick={() => setShowSeatDialog(false)}
+              disabled={generatingSeats}
             >
               Cancel
             </Button>
-            <Button onClick={handleSeatGeneration}>Generate Seats</Button>
+            <Button onClick={handleSeatGeneration} disabled={generatingSeats}>
+              {generatingSeats ? "Generating…" : "Generate Seats"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2317,7 +2464,7 @@ export default function AdminDashboard() {
                       </TableCell>
                       <TableCell>{booking.profiles?.email || "Unknown"}</TableCell>
                       <TableCell>{formatDate(booking.created_at)}</TableCell>
-                      <TableCell>{(booking.events?.is_free || booking.is_free) ? <span className="text-green-600 font-medium">Free</span> : `$${booking.total_price.toFixed(2)}`}</TableCell>
+                      <TableCell>{(booking.events?.is_free || booking.is_free) ? <span className="text-green-600 font-medium">Free</span> : formatPrice(booking.total_price)}</TableCell>
                       <TableCell>
                         <Badge
                           className={
@@ -2368,7 +2515,7 @@ export default function AdminDashboard() {
                   { label: "VIP Seats",      value: analyticsData.vip_seats },
                   { label: "Blocked",        value: analyticsData.blocked_seats },
                   { label: "Checked In",     value: analyticsData.checked_in },
-                  { label: "Revenue",        value: `$${analyticsData.revenue?.toFixed(2) ?? "0.00"}` },
+                  { label: "Revenue",        value: formatPrice(analyticsData.revenue ?? 0) },
                 ].map(({ label, value }) => (
                   <div key={label} className="rounded-lg border p-3 text-center">
                     <p className="text-xs text-muted-foreground mb-1">{label}</p>
@@ -2494,7 +2641,7 @@ export default function AdminDashboard() {
                   {(() => {
                     const rows: Record<string, any[]> = {};
                     seatCtrlSeats.forEach((s) => { rows[s.row] = [...(rows[s.row] || []), s]; });
-                    return Object.entries(rows).sort(([a], [b]) => a.localeCompare(b)).map(([row, seats]) => (
+                    return Object.entries(rows).sort(([a], [b]) => compareRows(a, b)).map(([row, seats]) => (
                       <div key={row} className="flex items-center gap-1 mb-1">
                         <span className="text-xs font-bold w-4 shrink-0">{row}</span>
                         <div className="flex flex-wrap gap-1">
